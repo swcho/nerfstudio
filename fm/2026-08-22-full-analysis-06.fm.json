@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "9ec90a7d-acb5-4a6d-8e15-accc685ce0c9",
+      "question": "`pixel_area`는 무엇에 사용되는가?",
+      "answer": "Mip-NeRF의 원뿔 프러스텀 반경 산출에 사용된다. 픽셀이 덮는 입체각을 반영해 안티에일리어싱을 가능하게 한다."
+    },
+    {
+      "id": "f7fcd5e8-ceb5-4c8a-8a66-af990e72b244",
+      "question": "`RayBundle`에서 `RaySamples`로 확장되는 과정은?",
+      "answer": "`RayBundle`이 `Frustums`(원뿔대) 표현을 통해 `RaySamples`로 확장되고, `get_weights(densities)`가 알파 합성 가중치를 계산한다."
+    },
+    {
+      "id": "6836b11b-b702-499b-a9d9-a6e58358f409",
+      "question": "`Viewer` 클래스의 책임은?",
+      "answer": "viser 서버를 소유하고, 클라이언트별 `RenderStateMachine` 스레드를 관리하며, 학습 데이터셋 카메라 프러스텀 시각화와 학습 일시정지/재개 버튼을 제공한다."
+    },
+    {
+      "id": "08949f55-cce4-44f0-bb7f-25d3bab4f302",
+      "question": "`RenderStateMachine`의 상태와 액션 집합은?",
+      "answer": "상태는 `{low_move, low_static, high}`, 액션은 `{move, static, step, rerender}`이며 이들의 전이표로 구현된다. 344 LOC 규모다."
+    },
+    {
+      "id": "b42d587d-1b2e-4f7c-8235-a0c305d39f87",
+      "question": "`ControlPanel`이 제공하는 기능은?",
+      "answer": "출력 채널 선택, 컬러맵, split view, 크롭 OBB, 배경색, 시간 슬라이더를 제공한다."
+    },
+    {
+      "id": "6bc829ef-56f4-4d33-a2d4-f2733735b27e",
+      "question": "저장소 최대 파일은 무엇이며 무엇을 하는가?",
+      "answer": "`viewer/render_panel.py`로 1,193 LOC다. 카메라 경로 저작 UI로 키프레임 추가/편집, `splines` 기반 보간, 루프/장력 제어, 재생 미리보기, JSON 내보내기를 담당한다."
+    },
+    {
+      "id": "4063ed34-01fd-4f41-93e8-99442b6f347b",
+      "question": "`viewer_elements.py`의 역할은?",
+      "answer": "모델 코드가 `ViewerSlider`, `ViewerCheckbox`, `ViewerDropdown`을 클래스 속성으로 선언하면 뷰어가 자동으로 GUI에 노출한다. `ViewerControl`은 클릭/포인터 콜백까지 제공한다."
+    },
+    {
+      "id": "17039253-8b8e-4db1-b53d-a1f9a564e08b",
+      "question": "외부 패키지가 새 메서드를 등록하는 pyproject 설정 형태는?",
+      "answer": "`[project.entry-points.'nerfstudio.method_configs']` 섹션에 `my-method = 'my_pkg:my_method_spec'` 형태로 `MethodSpecification`을 가리킨다. `discover_methods()`가 이를 로드해 `method_configs`에 병합한다."
+    },
+    {
+      "id": "9f79b87d-d75a-4e44-b2a8-e60b1785596a",
+      "question": "`configs/external_methods.py`는 무엇을 하는가?",
+      "answer": "설치되지 않은 외부 메서드 17개(24개 설정)를 더미로 등록해, `ns-train lerf`를 치면 설치 명령을 안내한다. 발견 가능성을 위한 UX 패턴이다."
+    },
+    {
+      "id": "86a89dc5-46ad-468f-a866-2fda93bf4ac2",
+      "question": "nerfstudio에 등록된 외부 메서드 예시는?",
+      "answer": "`in2n`, `kplanes`, `lerf`, `livescene`, `feature-splatting`, `tetra-nerf`, `nerfplayer`, `igs2gs`, `pynerf`, `seathru-nerf`, `zipnerf`, `signerf`, `nerfsh`, `nerfgs`, `splatfacto-w` 등이다."
+    },
+    {
+      "id": "840a0481-90f9-4d5b-9608-f124210756c4",
+      "question": "`plugins/` 패키지가 가장 작지만 전략적이라고 평가되는 이유는?",
+      "answer": "223 LOC로 최소 규모이지만 entry_points 기반 확장 지점을 제공해 외부 생태계가 코어를 수정하지 않고 메서드와 데이터파서를 추가할 수 있게 한다."
+    },
+    {
+      "id": "4a9b4f19-6acc-4184-afd5-9881ae6a54a7",
+      "question": "`configs` ↔ `models`/`data`/`engine`/`pipelines` 순환이 불가피한 이유는?",
+      "answer": "레지스트리(`method_configs`)가 모든 구현을 임포트해야 하고, 구현은 `configs.base_config.InstantiateConfig`를 상속해야 한다. `base_config`와 `method_configs`가 같은 패키지에 있어 순환처럼 보인다."
+    },
+    {
+      "id": "614a3779-5d5c-4a11-ab8a-0c80824b5649",
+      "question": "`engine` ↔ `pipelines` 순환의 성격은?",
+      "answer": "`engine.trainer`가 `pipelines.base_pipeline.VanillaPipeline`을 구체 타입으로 임포트하고, `pipelines`는 `engine.callbacks/optimizers`를 임포트한다. `callbacks.py`는 `TYPE_CHECKING`으로 회피했으나 `trainer.py`는 런타임 임포트다."
+    },
+    {
+      "id": "c7422aca-a051-46bf-8aaa-331f67cb2d9c",
+      "question": "`cameras` ↔ `data` 순환의 원인과 제안된 해결책은?",
+      "answer": "`cameras.cameras`가 `data.scene_box.{SceneBox,OrientedBox}`를 임포트하고 `data.*`가 `cameras.Cameras`를 39회 임포트한다. `scene_box`는 순수 기하 타입이므로 `utils/geometry.py`나 `cameras/`로 옮기는 것이 자연스럽다."
+    },
+    {
+      "id": "6fba50ca-ee63-429c-bdd3-06152b6f3a24",
+      "question": "가장 어색한 의존으로 지적된 것은 무엇이고 해결책은?",
+      "answer": "`cameras.camera_paths`가 `three_js_perspective_camera_focal_length` 함수 하나 때문에 `viewer_legacy.server.utils`를 임포트한다. 해당 함수를 `cameras`나 `utils`로 옮기면 즉시 해소된다."
+    },
+    {
+      "id": "764457fd-96e0-4081-a92a-559b7db2cac3",
+      "question": "`utils/eval_utils.py`가 구조적 문제로 지적되는 이유는?",
+      "answer": "`configs.method_configs`, `engine.trainer`, `pipelines`를 임포트하는 모듈은 사실상 고수준 스크립트 헬퍼이지 \"util\"이 아니다. `utils → configs → models → ...` 역방향 의존의 주범이며 `scripts/`나 `engine/`이 적절하다."
+    },
+    {
+      "id": "2c0bf821-675a-4a9f-8145-76f98d88f038",
+      "question": "nerfstudio에서 `TYPE_CHECKING` 가드는 얼마나 쓰이는가?",
+      "answer": "코드베이스 전체에서 20곳 미만만 사용되며 대부분 `viewer_legacy`와 `scripts/downloads`에 있다. 순환 위험이 있는 런타임 임포트에 더 널리 적용할 여지가 있다."
+    },
+    {
+      "id": "b9c49753-bedd-4a94-9d4d-bcee1c9fd5d6",
+      "question": "`utils/writer.py`의 전역 상태와 API는?",
+      "answer": "`EVENT_STORAGE`, `EVENT_WRITERS`, `GLOBAL_BUFFER`가 모듈 전역이며, `put_scalar`/`put_image`/`put_dict`로 어디서든 기록하고 `write_out_storage()`가 배치 플러시한다."
+    },
+    {
+      "id": "60acb843-48c4-4e2c-8475-8652c918f5fc",
+      "question": "`utils/profiler.py`와 `utils/comms.py`의 전역 상태는?",
+      "answer": "`profiler.py`는 `PROFILER` 리스트를 두고 `@profiler.time_function` 데코레이터가 참조한다. `comms.py`는 DDP 프로세스 그룹인 `LOCAL_PROCESS_GROUP`을 갖는다."
+    },
+    {
+      "id": "a1181e67-42d3-435e-bd19-9bf399280e68",
+      "question": "`configs/method_configs.py`의 전역 상태가 갖는 부작용은?",
+      "answer": "`method_configs`, `all_methods`, `all_descriptions`를 전역으로 두는데, 임포트 시점에 플러그인 스캔이 실행된다. 이것이 무거운 임포트의 원인이다."
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "3c099b1d-ee87-4266-bed2-abf1b3cd6e79",
+      "question": "nerfstudio의 pytest 실행 옵션과 그 의미는?",
+      "answer": "`pytest -n=4 --jaxtyping-packages=nerfstudio --disable-warnings`로, 4프로세스 병렬 실행과 함께 런타임 텐서 shape 검증을 켜고 테스트한다."
+    },
+    {
+      "id": "50f3ca20-43f8-41fa-bdb6-487176671eef",
+      "question": "nerfstudio의 CI 워크플로우 파일들은?",
+      "answer": "`core_code_checks.yml`(린트+테스트), `doc.yml`, `publish.yml`, `build_docker_image.yml`이다."
+    },
+    {
+      "id": "fbca40ab-29d1-49e8-aaaf-b65f94a900cf",
+      "question": "nerfstudio의 pre-commit 훅 순서는?",
+      "answer": "라이선스 헤더 자동 삽입 → trailing whitespace 제거 → ruff + ruff-format이다."
+    },
+    {
+      "id": "6ce81d59-e789-4e84-b5bf-eb783e1c18ab",
+      "question": "nerfstudio 로컬 개발 환경의 검증된 CUDA/PyTorch 조합은?",
+      "answer": "CUDA 11.8이 검증된 조합으로, `torch==2.1.2+cu118`, `torchvision==0.16.2+cu118`을 cu118 인덱스에서 설치하고 `conda install -c \"nvidia/label/cuda-11.8.0\" cuda-toolkit`을 함께 설치한다."
+    },
+    {
+      "id": "9299028e-e6e1-42ef-9045-7ce088fce933",
+      "question": "tiny-cuda-nn 설치 명령과 미설치 시 결과는?",
+      "answer": "`pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch`로 설치한다. 없으면 torch fallback으로 동작하지만 느리다."
+    },
+    {
+      "id": "c4906361-2296-4e03-b13d-d365a3671489",
+      "question": "nerfstudio 개발 설치와 스모크 테스트 절차는?",
+      "answer": "`pip install -e \".[dev]\"` 후 `ns-install-cli`로 자동완성을 설치하고, `ns-download-data nerfstudio --capture-name=poster` → `ns-train nerfacto --data data/nerfstudio/poster` → 브라우저 http://localhost:7007 확인이다."
+    },
+    {
+      "id": "aa056f12-3891-416d-98f7-971a7f28b576",
+      "question": "nerfstudio의 Python/torch 버전 명시에 어떤 불일치가 있는가?",
+      "answer": "`pyproject.toml`은 `requires-python = \">=3.8.0\"`, README는 Python 3.8을 명시하는데 `[dev]`는 `torch==2.7.1`을 명시한다. 실제 조합은 CUDA 버전과 GPU 세대에 따라 조정이 필요하다."
+    },
+    {
+      "id": "af969af2-212a-4cda-b013-2d516e43ec19",
+      "question": "\"설정 = 실행 그래프\"가 재현성에 기여하는 방식은?",
+      "answer": "`InstantiateConfig._target` + `setup()`만으로 DI 프레임워크 없이 완전한 조립 시스템을 만들었다. 학습 시작 시 저장된 `config.yml`을 `ns-eval`/`ns-render`가 다시 로드해 비트 단위로 동일한 파이프라인을 재구성하므로 재현성이 아키텍처에 내장되어 있다."
+    },
+    {
+      "id": "6331ff23-78a8-4127-861f-79a8388dafb9",
+      "question": "\"CLI를 손으로 쓰지 않는다\"는 장점의 구체적 효과는?",
+      "answer": "tyro가 dataclass 계층에서 argparse 트리를 생성하므로 새 하이퍼파라미터를 추가하면 CLI 플래그·도움말·기본값·타입 검증이 자동으로 따라온다. 문서와 코드가 동기화를 잃을 수 없다."
+    },
+    {
+      "id": "e31869e1-c8da-4368-b082-522a35ff6378",
+      "question": "`TensorDataclass`가 제거하는 버그 유형은?",
+      "answer": "`Cameras[3:7]`, `ray_bundle.to(\"cuda\")`, 자동 브로드캐스팅이 그냥 동작하게 하여 카메라/광선 코드의 인덱싱 버그를 구조적으로 제거한다."
+    },
+    {
+      "id": "6dbda1a0-19e4-48f1-80d3-fbdf17d59fa1",
+      "question": "jaxtyping을 프로덕션에서는 끄고 테스트에서만 켜는 판단의 근거는?",
+      "answer": "런타임 shape 검증에는 오버헤드가 있으므로 프로덕션 학습에서는 끄고, CI 테스트에서만 활성화해 회귀를 잡는다. 적절한 트레이드오프로 평가된다."
+    },
+    {
+      "id": "41c3d2bd-41de-4880-94dd-6b89879ba1da",
+      "question": "`configs/method_configs.py`의 개선 제안은?",
+      "answer": "814 LOC 단일 파일이 13개 내장 메서드의 하이퍼파라미터를 모두 담아 새 메서드 추가마다 충돌이 나는 병목이다. `configs/methods/nerfacto.py` 식으로 나누고 `__init__.py`에서 수집하면 diff가 국소화된다."
+    },
+    {
+      "id": "20197bcd-8726-4585-bdf5-37eff3da39af",
+      "question": "`viewer_legacy` 제거가 제안되는 이유는?",
+      "answer": "3,517 LOC(전체의 7%)가 deprecated 상태로 유지되는데 `engine`/`cameras`/`scripts`가 여전히 임포트한다. 별도 패키지로 분리하거나 삭제 시점을 명시하면 코어가 크게 가벼워진다."
+    },
+    {
+      "id": "9d66cb33-3ffb-4f89-8c1f-d7d5fa0d3187",
+      "question": "`method_configs` 임포트 부작용 완화가 필요한 이유는?",
+      "answer": "모듈 로드 시점에 entry_points 스캔과 13개 모델의 전이적 임포트가 실행되어, `ns-train --help`조차 torch/torchmetrics/gsplat 전체를 로드한다. 지연 로딩(lazy subcommand)이 검토 대상이다."
+    },
+    {
+      "id": "823cd79b-1402-4a85-8e61-f1e8357e4a2c",
+      "question": "`Union[RayBundle, Cameras]` 타입 부채의 해결 제안은?",
+      "answer": "`RayBasedModel` / `CameraBasedModel`로 계층을 갈라 각자 정확한 타입을 갖게 하는 것이다. 현재는 두 패러다임이 같은 `Model.get_outputs` 시그니처를 공유해 `# type: ignore`를 양산한다."
+    },
+    {
+      "id": "7a3b0d9a-b6e3-429f-9699-8070ddd8e6a7",
+      "question": "`seed_points` 배선의 개선 방향은?",
+      "answer": "`DataparserOutputs.metadata`에서 특정 키를 꺼내 모델 생성자에 넘기는 대신, 모델이 필요한 메타데이터를 스스로 선언하는 프로토콜이 확장성 있다."
+    },
+    {
+      "id": "e8fe839e-af55-421e-95fd-9e9d43a24a7c",
+      "question": "`nn.Module` 안의 함수 본문 임포트에 대한 지적은?",
+      "answer": "`NerfactoModel.populate_modules`가 함수 본문에서 `torchmetrics`를 임포트한다(ruff에서 `PLC0415` 무시 설정). 의도적 지연 로딩이지만 어디가 의도적이고 어디가 순환 회피인지 주석으로 구분하면 좋다."
+    },
+    {
+      "id": "b2478359-a4f5-4740-95c0-ddbbf413746f",
+      "question": "nerfstudio의 테스트 커버리지 편중 문제는?",
+      "answer": "2,860 LOC 테스트가 `cameras`/`field_components`/`model_components`에 집중되어 있다. 최대 패키지인 `data/`(8,542 LOC)에는 `test_datamanager.py` 하나뿐이고 `viewer/`와 `exporter/`에는 사실상 테스트가 없다."
+    },
+    {
+      "id": "deeacef9-dbe7-4597-ad7e-73af84a38b0a",
+      "question": "16종 데이터파서에 대해 제안된 테스트 전략은?",
+      "answer": "각 데이터파서별 골든 파일 테스트다. 파서 출력의 회귀를 방지하는 데 큰 효과를 낼 것으로 평가된다."
+    },
+    {
+      "id": "6d38a766-f46e-45aa-ae4f-a70d9752055b",
+      "question": "`viewer/render_panel.py`가 복잡한 이유는?",
+      "answer": "1,193 LOC로 스플라인 보간 + 키프레임 상태 + viser GUI 콜백이 한 파일에 얽혀 있고, UI 상태 머신이 암묵적이다."
+    }
+  ]
+}

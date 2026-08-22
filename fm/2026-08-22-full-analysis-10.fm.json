@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "0dac1584-e7ff-4413-b018-d1ae49f9ab3f",
+      "question": "nerfstudio에서 \"Field(필드)\"의 정의는?",
+      "answer": "3D 공간을 속성으로 매핑하는 함수이며, nerfstudio에서는 인코딩 + MLP 조합으로 구현된다. Field Component는 인코딩·MLP·임베딩·공간왜곡 같은 구성 블록이다."
+    },
+    {
+      "id": "e426b260-cc0c-4f57-8453-1676ef3b7dcc",
+      "question": "`RayBundle`이 담는 필드는?",
+      "answer": "`origins`, `directions`, `pixel_area`, `camera_indices`, `nears`/`fars`, `times` 등 광선 묶음 정보를 담는다."
+    },
+    {
+      "id": "c39cbde1-73f1-41e3-93ad-ef85926ac9bd",
+      "question": "`RaySamples`와 `Frustum`의 관계는?",
+      "answer": "`RaySamples`는 광선 위에서 샘플링된 점들로 `Frustums`(원뿔대) + 시작/끝 거리 + `deltas`를 갖는다. Frustum은 Mip-NeRF의 안티에일리어싱을 위해 점이 아닌 부피로 샘플을 표현한다."
+    },
+    {
+      "id": "679f30c9-ac82-4912-8686-fdf2d148f2ad",
+      "question": "Proposal Network의 역할은?",
+      "answer": "경량 밀도 전용 필드로 \"어디에 밀도가 있을지\"를 먼저 추정해, 본 네트워크의 샘플을 중요 영역에 집중시킨다."
+    },
+    {
+      "id": "419215a0-b600-413b-b13a-0bbc88f2e2f1",
+      "question": "Scene Contraction의 정의는?",
+      "answer": "무한 장면을 유한 부피로 압축하는 좌표 변환이며 Mip-NeRF 360에서 유래했다. `order=inf`면 정육면체 형태로 매핑한다."
+    },
+    {
+      "id": "aac7cd9f-2829-4c02-922c-23b451cdcf68",
+      "question": "SceneBox(AABB)와 OrientedBox(OBB)의 차이는?",
+      "answer": "SceneBox는 축 정렬 경계 상자로 장면의 관심 영역을 나타내고, OrientedBox는 회전 가능한 경계 상자로 뷰어의 크롭 및 내보내기 영역 지정에 쓰인다."
+    },
+    {
+      "id": "235876e1-71ce-421d-b85b-859c7411b53e",
+      "question": "`transforms.json`은 무엇을 담는가?",
+      "answer": "nerfstudio 표준 데이터셋 포맷으로 카메라 내부/외부 파라미터와 이미지 경로를 담는다. 모든 전처리 도구의 공통 출력이다."
+    },
+    {
+      "id": "29e8f277-5dec-4e08-acad-bd023da8e92f",
+      "question": "Pixel Sampler와 Ray Generator의 역할 구분은?",
+      "answer": "Pixel Sampler는 캐시된 이미지 배치에서 학습할 픽셀 `(cam, y, x)`을 선택하고, Ray Generator는 그 픽셀 인덱스를 카메라 모델과 포즈 보정을 적용해 `RayBundle`로 변환한다."
+    },
+    {
+      "id": "4b324f48-e818-4d7a-a5ef-01492e162fd1",
+      "question": "Appearance Embedding의 목적은?",
+      "answer": "이미지별 학습 가능 벡터로 노출/화이트밸런스 변화를 흡수한다. NeRF-W에서 온 기법이다."
+    },
+    {
+      "id": "38f08965-283f-4466-b1e1-b8085665d98c",
+      "question": "Interlevel Loss와 Distortion Loss의 역할 차이는?",
+      "answer": "Interlevel Loss는 proposal 네트워크의 가중치 분포가 최종 분포를 상계하도록 하는 정규화이고, Distortion Loss는 광선 위 가중치를 뭉치게 해 \"부유물(floaters)\"을 억제한다."
+    },
+    {
+      "id": "a35c1786-23fe-4df0-9e66-516f5cb10431",
+      "question": "3DGS에서 Densification / Culling이란?",
+      "answer": "가우시안을 분할·복제·제거하며 개수를 적응적으로 조절하는 과정이다. 표현력이 부족한 곳은 늘리고 불필요한 곳은 줄인다."
+    },
+    {
+      "id": "15d978c7-cd1a-45f8-b315-0ca3c9cc27c2",
+      "question": "COLMAP과 hloc의 차이는?",
+      "answer": "COLMAP은 오픈소스 SfM/MVS로 사진에서 카메라 포즈와 희소 포인트클라우드를 추정한다. hloc(Hierarchical Localization)은 학습 기반 특징을 사용해 COLMAP보다 강건한 매칭을 제공한다."
+    },
+    {
+      "id": "1b7ac2e2-63c9-4691-9a54-5b919e7357ed",
+      "question": "nerfstudio에 새 메서드를 추가할 때 건드릴 파일들은?",
+      "answer": "`models/<name>.py`에 `Model` 하위 클래스를 만들고, `configs/method_configs.py`에 `TrainerConfig`를 등록하고, `descriptions`에 한 줄을 추가한다."
+    },
+    {
+      "id": "daff2d43-8a2b-447c-b60e-1bd5ff1518f7",
+      "question": "새 데이터 포맷을 지원하려면 무엇을 해야 하는가?",
+      "answer": "`data/dataparsers/<name>_dataparser.py`에 `DataParser` 하위 클래스를 만들고 `_generate_dataparser_outputs`를 구현한다."
+    },
+    {
+      "id": "e56c8582-bbcf-4386-a1d9-3c95a3c68996",
+      "question": "손실 함수를 추가/수정할 때 필요한 3곳은?",
+      "answer": "`model_components/losses.py`에 함수를 추가하고, 해당 모델의 `get_loss_dict`에서 호출하고, `ModelConfig`에 `*_loss_mult` 필드를 추가한다."
+    },
+    {
+      "id": "eaadd860-84f4-4315-9c1f-5c01aa48f966",
+      "question": "새 인코딩을 추가하려면 무엇을 구현해야 하는가?",
+      "answer": "`field_components/encodings.py`에 `Encoding` 하위 클래스를 만들고 `get_out_dim`과 `forward`를 구현한다."
+    },
+    {
+      "id": "07ba522b-09eb-4383-990b-a3815ef4bbf8",
+      "question": "뷰어 컨트롤을 추가하는 두 가지 방법은?",
+      "answer": "`viewer/control_panel.py`를 수정하거나, 모델에 `ViewerSlider`/`ViewerDropdown` 속성을 선언해 자동 노출시킨다."
+    },
+    {
+      "id": "c765d384-b11e-4e58-baec-0e696ff46b8b",
+      "question": "새 내보내기 형식과 로깅 백엔드를 추가하려면?",
+      "answer": "내보내기는 `scripts/exporter.py`에 `Exporter` 하위 클래스를 추가하고 `exporter/` 유틸을 쓴다. 로깅은 `utils/writer.py`에 `Writer` 하위 클래스를 추가한다."
+    },
+    {
+      "id": "f9a298d2-4ecd-48ab-bc47-3f18076d2503",
+      "question": "학습이 발산하거나 PSNR이 안 오를 때 가장 먼저 확인할 것은?",
+      "answer": "`outputs/<exp>/<method>/<ts>/config.yml`이다. 실제로 어떤 설정으로 돌았는지가 여기 전부 담겨 있다."
+    }
+  ]
+}

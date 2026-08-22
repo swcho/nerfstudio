@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "b1e10e0e-2136-4f46-9647-77563012946f",
+      "question": "`BACKGROUND_COLOR_OVERRIDE`는 어떻게 사용되는가?",
+      "answer": "`model_components/renderers.py`의 전역 상태로, 컨텍스트 매니저 `background_color_override_context`를 통해 뷰어가 렌더러 동작을 임시로 변경한다."
+    },
+    {
+      "id": "8a3e2e34-96f1-46ca-ae3c-5dac9035a72a",
+      "question": "nerfstudio 학습의 단방향 데이터 흐름을 순서대로 나열하면?",
+      "answer": "디스크 이미지 → DataParser → DataparserOutputs → InputDataset → CacheDataloader → PixelSampler → RayGenerator → RayBundle → Model.get_outputs → outputs dict → get_loss_dict → 스칼라 손실 → backward → Optimizers다."
+    },
+    {
+      "id": "c3dcf987-05af-426f-9615-2a175734d964",
+      "question": "뷰어 → 학습 방향의 역방향 제어 경로는?",
+      "answer": "사용자가 일시정지를 누르면 `Trainer.training_state`가 바뀌고 학습 루프가 `while training_state == \"paused\": sleep(0.01)`에서 대기한다. `train_util` 슬라이더는 렌더 해상도를 조절해 학습/렌더 시간 배분을 바꾼다."
+    },
+    {
+      "id": "0dcc3326-82e6-45f5-b229-7441d7e050ee",
+      "question": "콜백 → 모델 방향의 이벤트 기반 경로 예시는?",
+      "answer": "`TrainingCallback`이 스텝 함수로 모델 내부 상태를 변경한다. proposal 어닐링과 Gaussian 분할/가지치기가 대표 예다."
+    },
+    {
+      "id": "8d7c7de6-9dc2-468e-9ec0-a035d5a07857",
+      "question": "COLMAP과 nerfstudio의 좌표계 차이는?",
+      "answer": "COLMAP은 OpenCV 관례(y-down, z-forward)이고 nerfstudio는 OpenGL 관례(y-up, z-backward)다. `process_data/colmap_utils.py`와 각 데이터파서에서 변환한다."
+    },
+    {
+      "id": "dbe8b453-b2d7-4968-a077-9e480d8461ce",
+      "question": "장면 정규화는 어떤 함수로 수행되며 무엇이 기록되는가?",
+      "answer": "`auto_orient_and_center_poses`(up 벡터 정렬 + 중심 이동)와 `scale_factor`로 AABB에 맞춘다. 결과는 `dataparser_transform`/`dataparser_scale`에 기록되어 역변환이 가능하다."
+    },
+    {
+      "id": "de886188-b6ed-4e98-87af-f2a5f0963987",
+      "question": "공간 왜곡(contraction)은 언제 적용되며 무엇을 하는가?",
+      "answer": "`SceneContraction(order=inf)`이 무한 장면을 반지름 2의 구(order=inf면 정육면체 형태)로 매핑하며, 필드 입력 직전에 적용된다."
+    },
+    {
+      "id": "4b8eddcf-ce53-4df7-8b2a-a441d1e98224",
+      "question": "알파 합성 가중치 계산 공식은?",
+      "answer": "`RaySamples.get_weights(densities)`에서 $\\alpha = 1-\\exp(-\\sigma\\delta)$, $T = \\text{cumprod}(1-\\alpha)$, $w = \\alpha T$로 계산한다. 모든 NeRF 렌더러의 공통 기반이다."
+    },
+    {
+      "id": "3c1247a3-8d9b-4ebe-9a39-c3478746f9bf",
+      "question": "Splatfacto에서 SH ↔ RGB 변환은 어떤 함수로 하는가?",
+      "answer": "`RGB2SH` / `SH2RGB` 함수로 색상을 구면조화 계수와 RGB 사이에서 오간다. 초기화 시 RGB→SH, 출력 시 SH→RGB를 수행한다."
+    },
+    {
+      "id": "8f0c3470-759e-4e47-9dfd-5b19f139d5e2",
+      "question": "nerfstudio가 외부 바이너리를 호출하는 방식은?",
+      "answer": "COLMAP, ffmpeg, hloc를 `utils/scripts.py:run_command`로 셸 호출한 뒤 출력을 파싱하는 서브프로세스 방식이다."
+    },
+    {
+      "id": "fe13a3fa-7bc5-4c1c-9265-4fa88d913f75",
+      "question": "CUDA 확장이 미설치일 때 nerfstudio는 어떻게 대응하는가?",
+      "answer": "`utils/external.py`가 tiny-cuda-nn / nerfacc / gsplat 등을 미설치 시 안내 메시지를 띄우는 더미로 대체한다. 임포트 실패로 죽지 않고 사용자에게 설치법을 알린다."
+    },
+    {
+      "id": "28fed6bb-9fcf-4f67-872e-9fbd584d71a3",
+      "question": "nerfstudio가 사용하는 파일 I/O 산출물 4가지는?",
+      "answer": "`transforms.json`(데이터셋), `config.yml`(pickle된 dataclass를 YAML로), `*.ckpt`(torch.save), `dataparser_transforms.json`이다."
+    },
+    {
+      "id": "be71d3e2-6b37-4eb1-8492-edd6fe7f6a1f",
+      "question": "`--viewer.make-share-url`은 무엇을 하는가?",
+      "answer": "pyngrok로 로컬 뷰어를 공개 인터넷에 노출하는 공유 URL을 만든다. 인증이 없어 보안상 주의가 필요하다."
+    },
+    {
+      "id": "07937b1a-0fd5-42f3-a59f-d5926f6d5c0f",
+      "question": "`NERFSTUDIO_METHOD_CONFIGS` 환경변수의 형식과 용도는?",
+      "answer": "`name=module:config` 형태를 쉼표로 구분해 지정하며, entry_point 없이 메서드를 주입한다(`plugins/registry.py:53`). 동일 형식의 `NERFSTUDIO_DATAPARSER_CONFIGS`도 있다."
+    },
+    {
+      "id": "ebc04cad-9223-4634-9d17-defadd4cc2ac",
+      "question": "프로파일러가 `CUDA_LAUNCH_BLOCKING`을 다루는 방식은?",
+      "answer": "정확한 시간 측정을 위해 일시적으로 `1`로 설정하고 이후 원래 값으로 복원한다(`utils/profiler.py:160`)."
+    },
+    {
+      "id": "5bd65998-9276-4cc6-8a9b-d3456e207141",
+      "question": "nerfstudio의 설정은 주로 무엇으로 관리되는가?",
+      "answer": "환경변수가 아니라 CLI 플래그와 `config.yml`로 관리된다. `ExperimentConfig` 트리 전체가 tyro로 노출되어 `--pipeline.model.<any-field>` 형태로 무엇이든 오버라이드할 수 있다."
+    },
+    {
+      "id": "e7e0b72a-5742-4e7f-8d6d-53cd645855fa",
+      "question": "nerfstudio의 빌드 백엔드와 패키지 데이터는?",
+      "answer": "setuptools ≥61을 백엔드로 `pyproject.toml` 단일 소스를 사용한다. 패키지 데이터로 `*.cu`, `*.json`, `py.typed`, `setup.bash`, `setup.zsh`를 포함한다."
+    },
+    {
+      "id": "7471f39f-2bd6-4955-a32b-5e12642f1721",
+      "question": "nerfstudio의 추가 의존성 그룹 3개와 내용은?",
+      "answer": "`[gen]`(diffusers/transformers/bitsandbytes), `[dev]`(pytest/ruff/pyright/pycolmap/awscli), `[docs]`(sphinx 계열)다."
+    },
+    {
+      "id": "f511cda4-2cb8-4f35-a902-fdc1f9c33f48",
+      "question": "nerfstudio가 제공하는 재현 가능한 환경 구성 수단은?",
+      "answer": "`pixi.toml` + `pixi.lock`(354KB)로 conda 기반 환경을 제공하고, 루트 `Dockerfile`과 `.devcontainer/`도 있다. CI가 ghcr.io에 이미지를 푸시한다."
+    },
+    {
+      "id": "a8577394-5756-4ada-b94c-4778c909c571",
+      "question": "ruff 설정에서 `F722`/`F821`을 무시하는 이유는?",
+      "answer": "jaxtyping의 문자열 shape 주석(`Float[Tensor, \"*batch 3\"]`)이 문법상 forward annotation처럼 보여 이 규칙들을 위반하기 때문이다. line-length는 120, select는 `[E,F,I,PLC,PLE,PLR,PLW,NPY201]`이다."
+    }
+  ]
+}

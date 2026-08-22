@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "69fa252a-02c0-4ae8-bffa-f9f5daaca974",
+      "question": "`get_image_metrics_and_images(...)`가 반환하는 것은?",
+      "answer": "PSNR/SSIM/LPIPS 메트릭과 시각화 이미지들을 반환한다. 평가 시 정량 지표와 정성 확인을 동시에 제공한다."
+    },
+    {
+      "id": "a1ecd996-651d-4876-9197-e2ce968dc746",
+      "question": "NerfactoModel이 사용하는 공간 왜곡 설정은?",
+      "answer": "`SceneContraction(order=inf)`으로 무한 장면을 유한 부피로 매핑한다. Mip-NeRF 360에서 온 기법이며 `order=inf`면 정육면체 형태가 된다."
+    },
+    {
+      "id": "fb19c7a9-1965-43e9-8706-42efe3b8e35f",
+      "question": "`NerfactoField`의 구성 요소는?",
+      "answer": "해시 그리드 인코딩 + 융합 MLP + appearance embedding이다. 여기에 경량 밀도 전용 필드인 `HashMLPDensityField`가 proposal network로 여러 개 추가된다."
+    },
+    {
+      "id": "576469ec-bec1-4e32-b564-9161178d02dc",
+      "question": "proposal weights annealing의 수식 구조는?",
+      "answer": "`train_frac = np.clip(step / N, 0, 1)`, `bias(x, b) = b*x / ((b-1)*x + 1)`을 사용해 `anneal = bias(train_frac, proposal_weights_anneal_slope) ** ...` 형태로 계산한다. 초반 학습에서 PDF를 부드럽게 만든다."
+    },
+    {
+      "id": "6e0cbb9c-10c0-485e-9ae0-eddc2cecd689",
+      "question": "nerfacto의 손실 항 구성은?",
+      "answer": "`rgb_loss` + `interlevel_loss`(proposal↔최종 분포 정합) + `distortion_loss`(부유물 억제)이며, 선택적으로 normal 및 camera-opt 정규화가 추가된다."
+    },
+    {
+      "id": "a275af79-d06e-4ca7-90a6-40cba8ef099c",
+      "question": "`CameraOptimizer`가 지원하는 모드는?",
+      "answer": "`off`, `SO3xR3`, `SE3`다. nerfacto는 기본적으로 `SO3xR3`을 사용해 카메라 포즈를 학습 가능 파라미터로 보정한다."
+    },
+    {
+      "id": "46b242a4-f49d-4b38-bdd9-358f3a3bcd02",
+      "question": "`SplatfactoModel`의 `gauss_params`에 담기는 파라미터는?",
+      "answer": "`nn.ParameterDict`로 `means`, `scales`, `quats`, `features_dc`, `features_rest`, `opacities`를 담는다. 개수가 학습 중 변하는 파라미터라는 점이 특이하다."
+    },
+    {
+      "id": "f4ea4df1-a4b8-487c-b59c-a956565659b2",
+      "question": "Splatfacto가 `load_state_dict`를 오버라이드해야 하는 이유는?",
+      "answer": "가우시안 개수가 학습 중 변하므로 체크포인트의 파라미터 크기가 현재 모델과 다르다. 따라서 체크포인트 크기에 맞춰 파라미터를 재할당해야 한다."
+    },
+    {
+      "id": "d57adbcb-6dae-40cd-ab6c-8b491c2fe12d",
+      "question": "Splatfacto의 가우시안 초기화 과정은?",
+      "answer": "COLMAP `points3D`를 시드로 사용하고, k-NN 평균 거리로 초기 스케일을 정하고, RGB를 SH 계수로 변환한다."
+    },
+    {
+      "id": "f07142ef-f900-49fc-86f4-dc3d604582d7",
+      "question": "Splatfacto의 렌더링이 NeRF 경로와 다른 점은?",
+      "answer": "`gsplat.rasterization(...)`을 직접 호출하여 샘플러/필드/렌더러로 이루어진 NeRF 경로를 전부 우회한다. 같은 `Model` 계약을 완전히 다른 렌더링 패러다임으로 만족시킨 예다."
+    },
+    {
+      "id": "f7d68630-a34a-4a20-9060-a9bec923e791",
+      "question": "Splatfacto의 두 가지 밀도 제어 전략은?",
+      "answer": "gsplat의 `DefaultStrategy`(분할/복제/가지치기/불투명도 리셋)와 `MCMCStrategy`(고정 개수 상한)다. `step_pre_backward` / `step_post_backward` 콜백으로 학습 루프에 삽입된다."
+    },
+    {
+      "id": "8757281c-c14a-4915-b41b-755b771ff07d",
+      "question": "Splatfacto가 SH 차수를 점진적으로 올리는 방식과 목적은?",
+      "answer": "`step // sh_degree_interval`로 차수를 점진 증가시켜 coarse-to-fine 색상 학습을 구현한다. 초반에는 낮은 차수로 안정적으로 학습한다."
+    },
+    {
+      "id": "188ade23-def0-44bb-bb1d-0b11853de5ee",
+      "question": "Splatfacto의 `BilateralGrid`는 무엇을 위한 것인가?",
+      "answer": "이미지별 색상/노출 보정을 위한 선택적 컴포넌트다. 촬영 조건이 다른 이미지들 사이의 색 차이를 흡수한다."
+    },
+    {
+      "id": "f13b5dad-f037-4495-a1f0-ded720fe5654",
+      "question": "`NeRFEncoding`의 특징은?",
+      "answer": "원본 NeRF의 sinusoidal 위치 인코딩이며 IPE(적분 위치 인코딩)도 지원한다. Mip-NeRF 계열의 안티에일리어싱에 필요하다."
+    },
+    {
+      "id": "a35df994-c864-4310-bb3c-99ef8c99fb6c",
+      "question": "`HashEncoding`은 어떤 기법이고 구현 선택지는?",
+      "answer": "Instant-NGP의 멀티해상도 해시 그리드 인코딩이다. tcnn 또는 순수 torch 구현을 선택할 수 있다."
+    },
+    {
+      "id": "6aa6c619-ff7e-4410-9a52-2ec00e35ece6",
+      "question": "`TensorCPEncoding` / `TensorVMEncoding` / `TriplaneEncoding` / `KPlanesEncoding`은 각각 무엇인가?",
+      "answer": "TensoRF의 CP/VM 분해, 3평면 분해, 시공간 K-Planes(동적 장면) 인코딩이다. 모두 저차원 분해로 메모리를 줄이는 기법이다."
+    },
+    {
+      "id": "9cf5f7c7-0173-46e1-b4e7-57b4890ac7e9",
+      "question": "`SHEncoding`과 `RFFEncoding`/`PolyhedronFFEncoding`은 무엇인가?",
+      "answer": "`SHEncoding`은 구면조화 방향 인코딩이고, `RFFEncoding`/`PolyhedronFFEncoding`은 랜덤/다면체 푸리에 피처 인코딩이다."
+    },
+    {
+      "id": "ef9af4e5-a491-4e02-a9cd-79027ec452e1",
+      "question": "`implementation: Literal[\"tcnn\", \"torch\"]` 스위치의 의미는?",
+      "answer": "전 코드베이스에 일관되게 존재하는 구현 선택 스위치로, tiny-cuda-nn이 없어도 torch fallback으로 동작하되 느리다. 선택적 CUDA 의존성을 우아하게 처리한 패턴이다."
+    },
+    {
+      "id": "f4dc1c42-0748-4ad7-aa8f-21ed255cc1d4",
+      "question": "`Cameras`가 지원하는 카메라 타입은?",
+      "answer": "`PERSPECTIVE`, `FISHEYE`, `EQUIRECTANGULAR`, `OMNIDIRECTIONALSTEREO_{L,R}`, `VR180_{L,R}`, `ORTHOPHOTO`, `FISHEYE624`다."
+    },
+    {
+      "id": "b2e5b154-593d-406c-b82c-295ce1c0f00f",
+      "question": "`_generate_rays_from_coords()`가 수행하는 작업들은?",
+      "answer": "카메라 타입별 언프로젝션 분기, 왜곡 계수 역보정, `pixel_area` 계산, ODS/VR180 스테레오의 눈 간격 origin 오프셋, `nears`/`fars`·`camera_indices`·`times`·`metadata` 전달이다. 약 170~425 LOC 규모의 함수다."
+    }
+  ]
+}
