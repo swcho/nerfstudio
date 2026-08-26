@@ -279,8 +279,8 @@ def _unit_sphere(res=10):
 
 
 @torch.no_grad()
-def ellipsoid_trace(model, idx, n_sigma=1.0, res=10, opacity=0.6, name="gaussians"):
-    """idx에 해당하는 가우시안들을 n_sigma 타원체 메시 하나(Mesh3d)로 합쳐서 반환"""
+def ellipsoid_mesh(model, idx, n_sigma=1.0, res=10):
+    """idx 가우시안들의 n_sigma 타원체를 메시 하나로. returns verts [V,3], faces [F,3], vertex colors uint8 [V,3]"""
     mu = model.means[idx].cpu()
     S = torch.exp(model.scales[idx]).cpu() * n_sigma          # [N,3] 축별 반지름
     R = quat_to_rotmat(model.quats[idx].cpu())                # [N,3,3]
@@ -290,8 +290,13 @@ def ellipsoid_trace(model, idx, n_sigma=1.0, res=10, opacity=0.6, name="gaussian
     # x = R @ diag(S) @ unit + mu
     verts = torch.einsum("nij,nvj->nvi", R, v0[None] * S[:, None, :]) + mu[:, None, :]   # [N,V,3]
     faces = f0[None] + (torch.arange(len(idx)) * V)[:, None, None]                        # [N,F,3]
-    verts, faces = verts.reshape(-1, 3), faces.reshape(-1, 3)
-    vcol = (col[:, None, :].expand(-1, V, -1).reshape(-1, 3) * 255).int()
+    vcol = (col[:, None, :].expand(-1, V, -1).reshape(-1, 3) * 255).to(torch.uint8)
+    return verts.reshape(-1, 3), faces.reshape(-1, 3), vcol
+
+
+def ellipsoid_trace(model, idx, n_sigma=1.0, res=10, opacity=0.6, name="gaussians"):
+    """plotly Mesh3d 트레이스"""
+    verts, faces, vcol = ellipsoid_mesh(model, idx, n_sigma, res)
     return go.Mesh3d(
         x=verts[:, 0], y=verts[:, 1], z=verts[:, 2], i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
         vertexcolor=[f"rgb({r},{g},{b})" for r, g, b in vcol.tolist()],
@@ -318,6 +323,43 @@ K_REGION = 300
 def region_idx(model, center=CENTER, k=K_REGION):
     d = (model.means - center.to(model.means.device)).norm(dim=-1)
     return d.topk(k, largest=False).indices
+
+
+# %% [markdown]
+# ### TensorBoard에 3D로 기록하기
+#
+# `trainer.setup()`이 `config.vis="tensorboard"`를 보고 nerfstudio `writer`에 `TensorboardWriter`를 이미 등록해 두었습니다
+# (로그 위치: `outputs/garden-walkthrough/splatfacto/<timestamp>/`). 그 안의 `SummaryWriter`를 꺼내 쓰면
+# TensorBoard의 **MESH 탭**(내장 3D 뷰어)에 점구름과 타원체 메시를 step별로 남길 수 있습니다 — plotly 그림은 노트북에만 남지만 이건 파일로 남습니다.
+#
+# ```bash
+# tensorboard --logdir outputs --port 6006 --bind_all   # CLI run(garden-splatfacto)과 이 노트북 run이 나란히 보임
+# ```
+
+# %%
+from nerfstudio.utils import writer
+from nerfstudio.utils.writer import TensorboardWriter
+
+tb = next(w for w in writer.EVENT_WRITERS if isinstance(w, TensorboardWriter)).tb_writer
+print("TensorBoard log dir:", tb.log_dir)
+
+
+@torch.no_grad()
+def log_gaussians_to_tb(model, step, n_points=50_000, region=None, tag="gaussians"):
+    """MESH 탭: (a) 가우시안 위치 점구름(색=SH0), (b) region 타원체 메시. 같은 tag로 step을 바꿔 쓰면 슬라이더로 시간 이동."""
+    N = model.num_points
+    idx = torch.randperm(N, generator=torch.Generator().manual_seed(0))[: min(n_points, N)]
+    xyz = model.means[idx].cpu()[None]
+    col = (torch.clamp(SH2RGB(model.features_dc[idx]), 0, 1).cpu() * 255).to(torch.uint8)[None]
+    tb.add_mesh(f"{tag}/points", vertices=xyz, colors=col, global_step=step, config_dict={"material": {"cls": "PointsMaterial", "size": 0.01}})
+    if region is not None:
+        v, f, c = ellipsoid_mesh(model, region, n_sigma=1.0, res=8)
+        tb.add_mesh(f"{tag}/ellipsoids_1sigma", vertices=v[None], colors=c[None], faces=f[None], global_step=step)
+    tb.flush()
+
+
+log_gaussians_to_tb(model, step=0, region=region_idx(model))
+print("step 0 기록 완료 → TensorBoard MESH 탭")
 
 
 # %%
@@ -482,6 +524,15 @@ for step in range(N_STEPS):
     loss, loss_dict, metrics = trainer.train_iteration(step)
     for cb in trainer.callbacks:  # AFTER: strategy.step_post_backward → densify/cull
         cb.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
+    # --- TensorBoard 기록 (trainer.train()의 L288-292와 동일한 태그) ---
+    if step % 10 == 0:
+        writer.put_scalar("Train Loss", loss, step)
+        writer.put_dict("Train Loss Dict", loss_dict, step)
+        writer.put_dict("Train Metrics Dict", metrics, step)  # gaussian_count 포함
+        writer.write_out_storage()
+    if step in SNAP_AT:
+        writer.put_image("walkthrough/eval_render", snaps[step], step)
+        writer.write_out_storage()
     history["step"].append(step)
     history["loss"].append(loss.item())
     history["n_gauss"].append(model.num_points)
@@ -536,6 +587,10 @@ with torch.no_grad():
 print(f"영역 내 scale 비율(max/min): 평균 {ratio_t.mean():.2f}, 최대 {ratio_t.max():.1f}  (step 0은 1.0)")
 _dark_scene(go.Figure([ellipsoid_trace(model, ridx_t, n_sigma=1.0, res=8)]), f"step {N_STEPS-1} — 같은 영역 {K_REGION}개, 1σ 타원체").show()
 
+# TensorBoard MESH 탭에도 같은 것을 기록 — 슬라이더로 step 0 ↔ 3300 을 왕복하며 비교할 수 있습니다
+log_gaussians_to_tb(model, step=N_STEPS - 1, region=ridx_t)
+print("기록 완료. TensorBoard → MESH 탭 → gaussians/points, gaussians/ellipsoids_1sigma / IMAGES 탭 → walkthrough/eval_render / SCALARS → Train Metrics Dict/gaussian_count")
+
 # %%
 # 파라미터 분포가 어떻게 바뀌었나
 fig, ax = plt.subplots(1, 3, figsize=(15, 3.5))
@@ -552,6 +607,8 @@ plt.show()
 #
 # 위에서 3k 스텝만 돌렸으니, 앞서 CLI로 18분 동안 완주한 체크포인트(`step-000029999.ckpt`)를 불러와 같은 카메라로 비교합니다.
 # 또 그 run의 TensorBoard 기록에서 전체 곡선을 읽어 미니 루프가 전체의 어느 구간이었는지 확인합니다.
+#
+# (TensorBoard UI로 보려면 `tensorboard --logdir outputs`. 아래는 UI 없이 이벤트 파일을 직접 파싱해 노트북 안에서 그리는 방법입니다.)
 
 # %%
 # ns-eval / ns-viewer / ns-export가 쓰는 공용 로더. config.yml → pipeline 재구성 → 최신 ckpt 로드.
