@@ -123,7 +123,17 @@ config.set_timestamp()
 # Trainer가 하는 setup을 그대로: pipeline(datamanager+model) → optimizers → callbacks
 trainer = config.setup(local_rank=0, world_size=1)
 trainer.setup(test_mode="test")
-pipeline, model, dm = trainer.pipeline, trainer.pipeline.model, trainer.pipeline.datamanager
+# 정적 타입은 베이스 클래스(Pipeline/Model/DataManager)라서 isinstance로 좁혀준다 — Pylance 자동완성 + 런타임 검증
+from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanager
+from nerfstudio.models.splatfacto import SplatfactoModel
+from nerfstudio.pipelines.base_pipeline import VanillaPipeline
+
+pipeline = trainer.pipeline
+assert isinstance(pipeline, VanillaPipeline)
+model = pipeline.model
+assert isinstance(model, SplatfactoModel)
+dm = pipeline.datamanager
+assert isinstance(dm, FullImageDatamanager)
 print(type(dm).__name__, "| cache:", dm.config.cache_images, dm.config.cache_images_type)
 
 # %%
