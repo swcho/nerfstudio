@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "41db6ef2-4faa-4146-8b28-2690cb4ed039",
+      "question": "`cameras/cameras.py:505-930` 구간이 어려운 이유는?",
+      "answer": "`_generate_rays_from_coords` 단일 함수(~425 LOC)가 8종 카메라 타입 × 왜곡 보정 × 스테레오 오프셋을 분기 처리한다. 중첩된 마스킹과 좌표 관례가 밀집되어 있다."
+    },
+    {
+      "id": "2864e352-6033-4490-99d8-8f356d2864f4",
+      "question": "`models/splatfacto.py`가 PyTorch 관례를 벗어나는 지점은?",
+      "answer": "학습 중 파라미터 개수가 변하므로 `load_state_dict` 오버라이드, 옵티마이저 상태 재배치, 밀도화 전략과의 콜백 협조가 필요하다. PyTorch의 정적 파라미터 가정을 벗어난다."
+    },
+    {
+      "id": "fd2a1056-b847-410c-b80b-05ae040597b4",
+      "question": "`ProposalNetworkSampler`의 암묵적 상태 요소는?",
+      "answer": "`_steps_since_update`, `update_sched(step)`, `set_anneal`이 얽혀 어닐링 + 업데이트 스케줄 + PDF 재샘플 상호작용을 만든다(ray_samplers.py:522-620, 약 100 LOC)."
+    },
+    {
+      "id": "aa2bf341-60ff-45a2-9e9e-1079f5ed27e3",
+      "question": "`process_data/colmap_utils.py`(714 LOC)의 위험성은?",
+      "answer": "COLMAP 바이너리 포맷 파싱 + 좌표계 변환 + 카메라 모델 매핑을 담당하는데, 관례 오류가 예외 없이 조용히 잘못된 재구성을 낳는다."
+    },
+    {
+      "id": "52e786c7-eea8-4167-b92f-4340edaa4d48",
+      "question": "`data/utils/dataloaders.py`(755 LOC)가 복잡한 이유는?",
+      "answer": "캐시 정책 + 멀티프로세스 워커 + 디바이스 이동 + collate가 하나로 결합되어 있다."
+    },
+    {
+      "id": "0a91385c-57bf-4924-b184-e3629f4ecdc1",
+      "question": "OOM의 주 원인으로 지적된 `CacheDataloader`의 동작은?",
+      "answer": "`num_images_to_sample_from`장을 GPU/CPU 메모리에 유지한다. 고해상도 대규모 데이터셋에서 OOM의 주 원인이며, 최신 커밋 `50e0e3c7`이 추가한 COLMAP 타일링 옵션이 이 문제 대응이다."
+    },
+    {
+      "id": "2193382f-ae12-45ef-b401-fb6484459503",
+      "question": "`FullImageDatamanager`의 성능 병목은?",
+      "answer": "`cached_train` 프로퍼티로 전체 데이터셋을 메모리에 캐시한다. Splatfacto로 수천 장을 학습할 때 병목이 된다."
+    },
+    {
+      "id": "2d219a8f-021f-472b-be31-13223f8ed975",
+      "question": "`Trainer._train_complete_viewer`의 성능 문제는?",
+      "answer": "`while True: time.sleep(0.01)`로 바쁜 대기를 한다. `--viewer.quit-on-train-completion`을 켜지 않으면 프로세스가 영구히 스핀한다."
+    },
+    {
+      "id": "51b06b79-1bca-4c26-bb2d-669b893aa52b",
+      "question": "`config.yml` 로드에 어떤 보안 문제가 있는가?",
+      "answer": "`yaml.load(..., Loader=yaml.Loader)`로 로드하여 임의 Python 객체를 역직렬화한다. 신뢰할 수 없는 체크포인트 디렉토리를 `--load-config`로 열면 코드 실행이 가능하며 `eval_utils.eval_setup`도 동일하다."
+    },
+    {
+      "id": "9c13c70c-5918-4e46-a985-29525daae0b8",
+      "question": "nerfstudio에서 pickle 기반 역직렬화 경로는 어디인가?",
+      "answer": "`config.yml`의 `yaml.Loader` 로드와 `torch.load` 체크포인트 로드다. 둘 다 임의 코드 실행 위험이 있어 자신이 만든 파일만 로드해야 한다."
+    },
+    {
+      "id": "ae88754b-01aa-4587-9a92-a796ffe99924",
+      "question": "`NERFSTUDIO_METHOD_CONFIGS`의 보안 위험은?",
+      "answer": "환경변수가 지정한 임의 모듈을 `importlib.import_module`로 로드한다. 신뢰할 수 없는 환경변수 값은 임의 코드 실행으로 이어질 수 있다."
+    },
+    {
+      "id": "957ea07f-adc0-42b2-a062-7bb27cdd79f0",
+      "question": "nerfstudio의 보안 이슈들을 어떤 위협 모델로 평가해야 하는가?",
+      "answer": "로컬 연구 도구라는 위협 모델에서는 합리적인 선택들이다. 다만 공유 클러스터나 서비스 환경에 배치할 때는 반드시 고려해야 한다."
+    },
+    {
+      "id": "480cba83-5b1d-4f82-af00-ed758b38518d",
+      "question": "nerfstudio의 버전 고정이 갖는 트레이드오프는?",
+      "answer": "`nerfacc==0.5.2`, `gsplat==1.4.0`, `viser==1.0.0`, `timm==0.6.7`, `opencv-python-headless==4.10.0.84` 등 정확한 고정이 많다. 안정성에는 좋지만 다른 패키지와의 공존을 어렵게 한다."
+    },
+    {
+      "id": "be7ca1be-b5c9-4208-8bbd-15018448ea5a",
+      "question": "`pyproject.toml`에 남은 플랫폼 우회 TODO들은?",
+      "answer": "pycolmap Windows 휠 부재, pymeshlab Windows 버전 제한, rawpy arm64 대체다. 크로스 플랫폼 지원의 마찰 지점을 보여준다."
+    },
+    {
+      "id": "941724bc-8348-4cc6-8963-d4d539a80390",
+      "question": "`# type: ignore`가 밀집된 영역과 그 원인은?",
+      "answer": "뷰어와 Splatfacto 경로에 밀집되어 있으며, `Union[RayBundle, Cameras]` 타입 부채의 증상이다."
+    },
+    {
+      "id": "b5b072b0-f685-4fc0-8dad-3c3e277d28ba",
+      "question": "nerfstudio를 처음 읽을 때 1순위로 읽어야 할 파일과 이유는?",
+      "answer": "`configs/base_config.py`다. `InstantiateConfig._target` + `setup()`을 이해하면 나머지 전부가 풀린다. 약 15분 분량이다."
+    },
+    {
+      "id": "2bea4c59-1439-4aa6-a00e-529b5e12a9a5",
+      "question": "nerfstudio 필수 파일 읽기 순서 5단계는?",
+      "answer": "1) `configs/base_config.py` 2) `configs/method_configs.py`의 `method_configs[\"nerfacto\"]` 블록 3) `engine/trainer.py` 4) `pipelines/base_pipeline.py` 5) `models/nerfacto.py`다."
+    },
+    {
+      "id": "137a9421-69fc-46c3-ac47-7328fc6e6d3a",
+      "question": "`models/splatfacto.py`를 보너스로 읽으면 무엇을 알 수 있는가?",
+      "answer": "같은 `Model` 계약을 완전히 다른 렌더링 패러다임(Gaussian 래스터화)으로 만족시키는 방법을 볼 수 있다. 추상화의 한계와 유연성이 동시에 드러난다."
+    },
+    {
+      "id": "e1b0177e-c379-497b-9772-dc3702d1e05b",
+      "question": "NeRF의 정의는?",
+      "answer": "Neural Radiance Field. 3D 좌표와 시선 방향을 입력받아 (밀도 σ, 색상 c)를 매핑하는 신경망이며, 볼륨 렌더링으로 이미지를 합성한다."
+    },
+    {
+      "id": "01baa280-74db-4807-bb90-107aae62077b",
+      "question": "3D Gaussian Splatting(3DGS)의 정의는?",
+      "answer": "장면을 수백만 개의 3D 가우시안(위치/스케일/회전/불투명도/SH색상)으로 표현하고 래스터화하는 방법이다. NeRF보다 훨씬 빠르다."
+    }
+  ]
+}

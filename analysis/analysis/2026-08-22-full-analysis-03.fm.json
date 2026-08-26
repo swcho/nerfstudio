@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "9917dd5a-37ba-429f-ac72-c698ea4557bc",
+      "question": "ProposalNetworkSampler의 계층적 샘플링 3단계는?",
+      "answer": "Uniform/Piecewise로 초기 샘플을 만들고, `HashMLPDensityField`로 weight를 추정하고, PDFSampler로 재샘플한다. 이를 `num_proposal_iterations`회 반복한다."
+    },
+    {
+      "id": "7206fe01-ae7d-4ad5-8a88-e7187ddd46f9",
+      "question": "ProposalNetworkSampler가 반환하는 값들은?",
+      "answer": "`RaySamples`와 함께 `weights_list`, `ray_samples_list`를 반환한다. 이 리스트들은 interlevel loss와 distortion loss 계산에 사용된다."
+    },
+    {
+      "id": "b9f738f2-34d3-4595-bcee-6b26854f49ca",
+      "question": "nerfacto의 렌더러 출력 딕셔너리에 포함되는 대표 키는?",
+      "answer": "`rgb`, `accumulation`, `depth`, `expected_depth` 등이다. RGB/Accumulation/Depth/Normals 렌더러가 각각 생성한다."
+    },
+    {
+      "id": "a6fc60b3-73d0-49d3-aa0c-e6e9f376346d",
+      "question": "학습 1 스텝에서 손실 계산과 역전파 흐름은?",
+      "answer": "`get_metrics_dict`(psnr, distortion) → `get_loss_dict`(rgb_loss + interlevel + distortion 등) → `loss = reduce(add, loss_dict.values())` → `grad_scaler.scale(loss).backward()` → `optimizer_scaler_step_some` → `scheduler_step_all(step)`이다."
+    },
+    {
+      "id": "6c209728-e6ff-412b-bd80-40429c7b71e7",
+      "question": "학습 루프 말미에 수행되는 주기적 작업 3가지는?",
+      "answer": "`writer.put_*`로 loss/metrics/GPU 메모리 기록, `eval_iteration(step)`으로 주기별 batch/image/all-images 평가, `save_checkpoint(step)`으로 `steps_per_save` 주기 체크포인트 저장이다."
+    },
+    {
+      "id": "465587d4-af8e-4dda-8760-5857c2ba8e0b",
+      "question": "`ns-process-data images`의 `__post_init__`에서 하는 일은?",
+      "answer": "ffmpeg/colmap 같은 외부 의존성을 검증하고 출력 디렉토리를 준비한다. 실행 전 사전 검증 단계다."
+    },
+    {
+      "id": "b2754a59-3df2-4466-8c92-3dcf2b96dc36",
+      "question": "`ns-process-data`가 이미지에 대해 수행하는 전처리 단계는?",
+      "answer": "`copy_images`로 리사이즈 및 EXIF 회전 보정, `downscale_images`로 1/2·1/4·1/8 피라미드 생성, 마스크가 있으면 `copy_and_upscale_polygon_masks`를 수행한다."
+    },
+    {
+      "id": "22a01aed-0ed8-4ece-9a99-de6d9be97524",
+      "question": "`_run_colmap()`의 3단계와 선택 가능한 옵션은?",
+      "answer": "feature extract → match → mapper 순서다. `sfm_tool`은 any/colmap/hloc, `matcher`는 exhaustive/sequential/vocab_tree를 선택할 수 있다."
+    },
+    {
+      "id": "cc6f655c-a3a6-4f26-bdab-98edfb2f731c",
+      "question": "COLMAP이 출력하는 sparse 결과 파일들은?",
+      "answer": "`sparse/0/` 아래 `cameras.bin`, `images.bin`, `points3D.bin`이다. 이후 `colmap_to_json()`이 이를 `transforms.json`으로 변환한다."
+    },
+    {
+      "id": "38b383bb-5554-4405-add2-19509dd68492",
+      "question": "`colmap_to_json()`이 수행하는 변환 작업 3가지는?",
+      "answer": "OpenCV → OpenGL 좌표 변환, 왜곡계수 및 카메라 모델 매핑, points3D 내보내기다."
+    },
+    {
+      "id": "60612aa2-aaac-4138-ba55-576bb2f55abd",
+      "question": "`ns-process-data images`의 최종 출력물은?",
+      "answer": "`<out>/transforms.json`과 `images/`, 그리고 다운스케일된 `images_2/`, `images_4/`, `images_8/` 디렉토리다. `--include-depth-debug` 시 희소 깊이맵도 렌더한다."
+    },
+    {
+      "id": "f968f881-7b74-4c7a-b1c8-329e3b6b7dca",
+      "question": "뷰어에서 브라우저가 접속하면 어떤 일이 일어나는가?",
+      "answer": "WebSocket으로 viser 서버에 연결되고 `handle_new_client`가 호출되어 클라이언트별 `RenderStateMachine`을 시작한다. 즉 클라이언트마다 별도 렌더 스레드가 생긴다."
+    },
+    {
+      "id": "ffa2b276-fe3c-4bb1-93e1-2693825c00bd",
+      "question": "RenderStateMachine의 해상도 전략은?",
+      "answer": "상태 전이 low_move → low_static → high로, 카메라가 움직이는 중에는 저해상도, 정지하면 고해상도로 렌더한다. `_calculate_image_res(aspect)`가 `train_util` 비율에 따라 해상도를 결정한다."
+    },
+    {
+      "id": "9f7d1db2-d683-46d3-bdeb-d3cb92d38fc4",
+      "question": "뷰어 렌더 중 새 카메라 입력이 들어오면 어떻게 처리되는가?",
+      "answer": "`sys.settrace` 기반 `check_interrupt`가 `IOChangeException`을 던져 렌더를 중단시킨다. 영리하지만 침습적인 기법으로 평가된다."
+    },
+    {
+      "id": "e86060e8-217e-41d4-9668-70f2421f4e5b",
+      "question": "뷰어가 프레임을 브라우저에 전달하는 과정은?",
+      "answer": "컬러맵 적용 / split view 합성 / gl_z_buf_depth 계산 후 `set_background_image(JPEG/PNG, depth)`로 viser 서버에 전달하고, 서버가 브라우저에 프레임을 전송한다."
+    },
+    {
+      "id": "4eb24266-48fd-45a8-a0a2-64a829acc170",
+      "question": "뷰어 렌더 시 모델 상태는 어떻게 관리되는가?",
+      "answer": "`model.eval()`로 전환하고 `get_outputs_for_camera(camera, obb_box)`를 호출한 뒤, `train_lock`을 해제하고 `model.train()`으로 복원한다."
+    },
+    {
+      "id": "a5631024-45d4-4702-911a-382697c64e52",
+      "question": "`engine/trainer.py`의 책임과 규모는?",
+      "answer": "566 LOC로 파이프라인·옵티마이저·뷰어·로거·체크포인트를 조립하고 학습 루프를 구동한다. 제어 흐름의 중심이다."
+    },
+    {
+      "id": "d53d0048-0a15-4df9-864e-bad2351151fa",
+      "question": "`TrainerConfig`의 주요 필드는?",
+      "answer": "`steps_per_save`, `max_num_iterations`, `mixed_precision`, `load_dir`/`load_step`/`load_config`/`load_checkpoint`, `gradient_accumulation_steps`, `start_paused` 등이다."
+    },
+    {
+      "id": "df81ae2c-fd7b-416f-839a-ec1618ea23b2",
+      "question": "`train_iteration`에서 gradient accumulation은 어떻게 처리되는가?",
+      "answer": "`gradient_accumulation_steps[group]` 주기가 도래한 파라미터 그룹만 `zero_grad`하고, 누산 주기 끝에 도달한 그룹만 `optimizer_scaler_step_some`으로 스텝한다. 그룹별로 독립적인 누산 주기를 갖는다."
+    },
+    {
+      "id": "9d9fab79-fef5-46ab-b578-0d049bca1beb",
+      "question": "nerfstudio에서 손실 가중치는 어디서 곱해지는가?",
+      "answer": "각 모델의 `get_loss_dict` 안에서 이미 곱해져 있다. Trainer는 `functools.reduce(torch.add, loss_dict.values())`로 단순 합만 취한다."
+    }
+  ]
+}

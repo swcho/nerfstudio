@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "51a9f1a4-8c79-49ad-916f-46e78c0cb335",
+      "question": "grad scaler와 스케줄러 사이의 미묘한 정확성 디테일은?",
+      "answer": "grad scaler가 스케일을 낮췄으면(=옵티마이저 스텝이 스킵됐으면) 스케줄러를 진행시키지 않는다. AMP 사용 시 흔히 놓치는 정확성 디테일을 정확히 처리한 부분이다."
+    },
+    {
+      "id": "d2a8d752-a2da-422a-b0ea-bcfa3e8f9976",
+      "question": "`Trainer.training_state`가 가질 수 있는 값과 누가 바꾸는가?",
+      "answer": "`\"training\"`, `\"paused\"`, `\"completed\"` 세 가지이며 뷰어가 직접 토글한다. `train_lock: Lock`이 학습 스텝과 뷰어 렌더의 상호배제를 보장한다."
+    },
+    {
+      "id": "4d505648-ba04-42e7-a43e-28444e1915cc",
+      "question": "`VanillaPipeline`의 책임은?",
+      "answer": "DataManager와 Model 사이의 얇은 조정 계층이며 DDP 래핑 지점이기도 하다. `Pipeline`(추상), `VanillaPipelineConfig`, `module_wrapper`를 함께 제공한다."
+    },
+    {
+      "id": "37a7c9ce-6681-4beb-9a3d-cb07621da8fb",
+      "question": "`VanillaPipeline`에서 `self._model`과 `self.model`을 구분하는 이유는?",
+      "answer": "`self._model`은 DDP 래퍼일 수 있어 forward에 사용하고, `self.model`은 항상 실제 모듈이므로 메서드 호출에 사용한다. 이 구분이 `module_wrapper` / `model` 프로퍼티가 존재하는 이유다."
+    },
+    {
+      "id": "bb173677-c9b8-482c-844c-bc6e78c607a5",
+      "question": "`VanillaPipeline.get_train_loss_dict`의 핵심 4줄 흐름은?",
+      "answer": "`next_train(step)`으로 (ray_bundle, batch) 획득 → `self._model(ray_bundle)`로 forward → `get_metrics_dict(outputs, batch)` → `get_loss_dict(outputs, batch, metrics_dict)`다."
+    },
+    {
+      "id": "ec47bce0-fbf5-4d48-95cd-1b81d5c0850a",
+      "question": "`seed_points`는 어디서 나와 어디로 전달되며 왜 문제인가?",
+      "answer": "`VanillaPipeline.__init__`이 `train_dataparser_outputs.metadata[\"points3D_xyz\"]`를 꺼내 모델에 넘긴다. Splatfacto의 Gaussian 초기화 경로이며 소스에도 `# TODO make cleaner`가 달린 특수 케이스 배선이다."
+    },
+    {
+      "id": "46fb8c8c-904c-45da-92f2-5d6e7634f6fb",
+      "question": "`load_state_dict`가 `_model.` 접두사를 다루는 이유는?",
+      "answer": "DDP 래핑 여부에 따라 state_dict 키에 `_model.` 접두사가 붙거나 붙지 않으므로, 접두사를 붙였다 떼며 DDP/non-DDP 체크포인트 호환을 처리한다."
+    },
+    {
+      "id": "6bc5cdca-d90f-4682-bf29-940ad6df8c78",
+      "question": "`data/` 패키지의 4단 파이프라인은?",
+      "answer": "DataParser → Dataset → DataManager → (PixelSampler + RayGenerator)다. 포맷 정규화, 데이터 접근, 배치 공급, 광선 생성으로 역할이 분리된다."
+    },
+    {
+      "id": "91dd5fe7-38f2-45e2-9404-7b7b5b60e75e",
+      "question": "`DataparserOutputs`의 필드를 나열하면?",
+      "answer": "`image_filenames`, `cameras`, `alpha_color`, `scene_box`(AABB), `mask_filenames`, `metadata`, `dataparser_transform`, `dataparser_scale`이다."
+    },
+    {
+      "id": "e030e60b-217b-41d2-8c21-bc3deb10e532",
+      "question": "`DataparserOutputs.metadata`는 어떤 역할을 하는가?",
+      "answer": "`depth_filenames`, `points3D_xyz`, `semantics` 등을 담는 확장 슬롯이다. 정규화 구조체를 깨지 않고 포맷별 추가 정보를 실어 보내는 통로다."
+    },
+    {
+      "id": "b53b1106-7be5-4638-b930-8446d7aa81c5",
+      "question": "`dataparser_transform`/`dataparser_scale`은 왜 필요한가?",
+      "answer": "학습 시작 시 `dataparser_transforms.json`으로 저장되어 나중에 렌더/내보내기 결과를 원본 세계 좌표계로 되돌릴 수 있게 한다(`transform_poses_to_original_space`)."
+    },
+    {
+      "id": "b5c3f0ae-9a1b-439e-9f7b-999b1f792ef5",
+      "question": "`VanillaDataManager`와 `ParallelDataManager`의 차이는?",
+      "answer": "둘 다 `RayBundle`을 반환하지만 `ParallelDataManager`는 워커 프로세스가 광선 배치를 미리 생성한다. nerfacto의 기본 선택이다."
+    },
+    {
+      "id": "2b64ac62-1ac2-48de-90c3-531333dc3dd3",
+      "question": "`FullImageDatamanager`와 `RandomCamerasDataManager`는 각각 언제 쓰이는가?",
+      "answer": "둘 다 `Cameras`를 반환한다. `FullImageDatamanager`는 Splatfacto 등 래스터화 모델에, `RandomCamerasDataManager`는 데이터셋 없이 카메라를 샘플링하는 Generfacto(텍스트→NeRF)에 쓰인다."
+    },
+    {
+      "id": "29fe927a-ef4a-4eb3-ac59-ae0855c4f82c",
+      "question": "DataManager 구현의 이질성이 코드베이스에 남긴 흔적은?",
+      "answer": "`RayBundle`을 반환하는 구현과 `Cameras`를 반환하는 구현이 공존해 `Union[RayBundle, Cameras]` 타입이 코드베이스 전반에 퍼졌다. 이는 `# type: ignore`를 양산하는 타입 부채가 되었다."
+    },
+    {
+      "id": "8ea73108-8ad1-4733-aa1a-6db28e460fe6",
+      "question": "`PixelSampler`가 지원하는 특수 샘플링 기능들은?",
+      "answer": "`PatchPixelSampler`(패치 단위), 등장방형 카메라용 위도 가중 샘플링, fisheye crop radius 마스킹, 마스크 인지 샘플링, 가변 해상도 배치 지원이다. 590 LOC 규모다."
+    },
+    {
+      "id": "0be8e2a3-e936-43b1-9cf7-5db5db5980f8",
+      "question": "`CacheDataloader`의 동작 원리와 목적은?",
+      "answer": "N장의 이미지를 메모리에 캐시하고 M회 재사용한 뒤 교체한다. 디스크 I/O를 학습 루프에서 분리하는 핵심 최적화다(755 LOC)."
+    },
+    {
+      "id": "0acd13b7-095a-4a64-a4ee-3d6b58096cc4",
+      "question": "`Model` 기반 클래스에서 `populate_modules()`의 역할과 호출 시점은?",
+      "answer": "필드/샘플러/렌더러/손실/메트릭을 구축하며 `__init__` 말미에 호출된다. 하위 클래스가 반드시 채워야 하는 핵심 훅이다."
+    },
+    {
+      "id": "b9c91966-44f2-408c-b242-2901375dc573",
+      "question": "`Model.get_param_groups()`가 반환하는 것은?",
+      "answer": "`{\"fields\": [...], \"proposal_networks\": [...]}` 같은 옵티마이저 그룹 딕셔너리다. Trainer가 이를 받아 그룹별로 Adam과 스케줄러를 만든다."
+    },
+    {
+      "id": "f0206655-189c-490c-b7c4-5f02d4ddff56",
+      "question": "`get_metrics_dict`와 `get_loss_dict`의 관계는?",
+      "answer": "`get_metrics_dict`는 손실에 쓰이는 값(예: distortion)까지 포함해 계산하고, `get_loss_dict(outputs, batch, metrics_dict)`가 이를 받아 가중치가 이미 곱해진 손실 항들을 반환한다."
+    },
+    {
+      "id": "568113f4-c115-45de-bb0a-ee43cbaec1c1",
+      "question": "`get_outputs_for_camera(camera, obb_box)`는 언제 사용되는가?",
+      "answer": "평가와 뷰어용 전체 이미지 렌더에 사용된다. 학습용 `get_outputs`(광선 배치)와 달리 카메라 하나 전체를 렌더한다."
+    }
+  ]
+}

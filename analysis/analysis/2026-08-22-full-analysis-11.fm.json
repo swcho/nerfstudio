@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "df5b2ad9-2f86-4087-b3c9-b6c8f3df8ae3",
+      "question": "뷰어의 `accumulation` 출력이 0에 가까우면 무슨 문제인가?",
+      "answer": "광선이 장면을 빗나가고 있다는 뜻이다. 포즈 문제이거나 `near_plane`/`far_plane`/`scene_box` 설정 문제다."
+    },
+    {
+      "id": "bc418dde-e276-4bd8-aee2-b4054d40ae16",
+      "question": "`depth` 출력이 균일하게 `far_plane`이면 무엇을 의심해야 하는가?",
+      "answer": "밀도가 전혀 학습되지 않는 상태다. 학습률 또는 `average_init_density` 설정을 확인해야 한다."
+    },
+    {
+      "id": "931c26f2-8d53-4466-9632-8d2f5739f486",
+      "question": "개별 손실 항의 균형을 확인하는 방법은?",
+      "answer": "`--vis viewer+tensorboard`로 손실 항을 분리해서 본다. `distortion_loss`나 `interlevel_loss`가 `rgb_loss`를 압도하면 해당 `*_loss_mult`를 낮춘다."
+    },
+    {
+      "id": "3f7aa18c-eef4-4ba1-b950-f670e47b90ef",
+      "question": "traceback이 제대로 보이지 않을 때의 해결책은?",
+      "answer": "`--logging.local-writer.max-log-size 0`으로 rich 라이브 출력을 끄면 traceback이 정상적으로 표시된다."
+    },
+    {
+      "id": "74539f0e-6754-4f3a-a5a4-768823d7727c",
+      "question": "데이터/포즈 문제를 진단하는 첫 단계는?",
+      "answer": "뷰어의 카메라 프러스텀 시각화를 먼저 확인한다. 카메라가 뒤엉켜 있으면 COLMAP 재구성 실패다."
+    },
+    {
+      "id": "87318e9b-dad3-4210-b894-bde2a4ac7a6a",
+      "question": "`transforms.json`에서 포즈 문제 진단 시 확인할 항목은?",
+      "answer": "`camera_model`, 왜곡 계수, `applied_transform`을 확인한다."
+    },
+    {
+      "id": "5d39ede5-1257-4d0e-8eab-4e6afb187d8f",
+      "question": "COLMAP 매칭 방법 선택이 재구성에 미치는 영향은?",
+      "answer": "영상에는 `--matching-method sequential`, 사진에는 `exhaustive`가 적합하며 이 선택이 등록 성공률에 크게 영향을 준다. 재구성이 부분적이면 등록 실패 이미지가 있는지 COLMAP 출력을 확인한다."
+    },
+    {
+      "id": "c08ecd27-eed7-4011-a998-b65833df9bcb",
+      "question": "좌표계 문제가 의심될 때 확인할 코드 위치는?",
+      "answer": "`data/dataparsers/`의 해당 파서에서 `auto_orient_and_center_poses` 호출 전후 값을 찍어본다."
+    },
+    {
+      "id": "4c183854-32ee-4565-8f1f-11ea4a57aa5f",
+      "question": "OOM 발생 시 조정할 CLI 플래그 4가지는?",
+      "answer": "`--pipeline.datamanager.train-num-rays-per-batch` 낮추기, `--pipeline.datamanager.train-num-images-to-sample-from` 낮추기(캐시 크기), `--pipeline.model.eval-num-rays-per-chunk` 낮추기, `--mixed-precision True`다."
+    },
+    {
+      "id": "e8c71680-b30a-4f43-a644-a26897c776ed",
+      "question": "Splatfacto에서 OOM이 날 때의 대응은?",
+      "answer": "`FullImageDatamanager`가 전체 데이터셋을 캐시하므로 이미지를 다운스케일하거나 COLMAP 타일링 옵션을 사용한다."
+    },
+    {
+      "id": "77f7f966-5a29-4c22-a8ce-76b2f67c153c",
+      "question": "뷰어가 안 뜰 때 확인할 두 가지는?",
+      "answer": "포트 7007 충돌 여부(`--viewer.websocket-port`로 변경)와 `--vis`에 `viewer`가 포함되어 있는지다. `wandb`만 지정하면 뷰어가 없다."
+    },
+    {
+      "id": "16350d22-184e-4c72-b52c-8eaf91669907",
+      "question": "뷰어 렌더가 느릴 때의 해결책은?",
+      "answer": "컨트롤 패널의 `train_util` 슬라이더를 낮춘다. 이는 학습 대비 렌더 시간 비율을 조절한다."
+    },
+    {
+      "id": "d3a89734-fc9a-4566-9060-bfe649c92768",
+      "question": "뷰어 렌더 중 예외의 진짜 원인을 찾는 방법은?",
+      "answer": "`_update_viewer_state`가 `RuntimeError`를 삼키고 \"Viewer failed. Continuing training.\"만 출력하므로, 이 지점에 브레이크포인트를 걸어야 원인을 볼 수 있다."
+    },
+    {
+      "id": "7dd7bbe6-0f30-45db-b365-ccff9e28a2b3",
+      "question": "플러그인/외부 메서드가 목록에 안 보일 때 확인 순서는?",
+      "answer": "1) `ns-train --help`로 목록 확인(미설치 외부 메서드는 설치 안내와 함께 표시) 2) entry_point가 `MethodSpecification` 인스턴스인지 확인 — 아니면 경고만 출력하고 조용히 건너뛴다 3) `NERFSTUDIO_METHOD_CONFIGS=name=module:config`로 임시 주입해 테스트."
+    },
+    {
+      "id": "593d6612-82a5-4782-92c0-c7f6e99df22c",
+      "question": "nerfstudio의 성능 프로파일링 방법은?",
+      "answer": "`--logging.profiler pytorch` 또는 `basic`을 지정하면 `@profiler.time_function`이 붙은 함수들의 시간이 학습 종료 시 출력된다."
+    },
+    {
+      "id": "ab431be2-b5d9-4418-9528-0f03fb0a4272",
+      "question": "이미 계측되어 있어 데이터 로딩 vs 순전파 병목 구분에 쓰이는 함수들은?",
+      "answer": "`Trainer.train_iteration`, `Pipeline.get_train_loss_dict`, `DataManager.next_train`이다."
+    },
+    {
+      "id": "b930af72-4cbc-4fda-ac02-0ffb3ea28a06",
+      "question": "nerfstudio 소스 코드의 총 규모와 상위 3개 패키지 비중은?",
+      "answer": "소스 합계 47,871 LOC / 205개 파일이다. 상위는 `data/`(8,542 LOC, 17.9%), `scripts/`(6,089 LOC, 12.8%), `models/`(4,331 LOC, 9.1%)다."
+    },
+    {
+      "id": "9f04cdf8-c5b9-416a-b679-10582a455a5b",
+      "question": "`viewer/`와 `viewer_legacy/`가 차지하는 비중 합계는?",
+      "answer": "`viewer/` 3,660 LOC(7.7%)와 `viewer_legacy/` 3,517 LOC(7.4%)로 합계 약 15%다. 두 뷰어를 동시에 유지하는 것이 유지보수 부담으로 지적된다."
+    },
+    {
+      "id": "17e32fd7-f121-441e-b258-be99da19a223",
+      "question": "nerfstudio에 내장된 방법론(모델) 수와 대표 예시는?",
+      "answer": "`models/` 패키지에 13종이 구현되어 있으며 nerfacto, splatfacto, instant-ngp, neus, tensorf 등이 있다. 4,331 LOC / 14개 파일 규모다."
+    }
+  ]
+}

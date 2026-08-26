@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "b14585aa-ce4b-42af-9aad-df8241e4c9e6",
+      "question": "`method_configs` 딕셔너리가 CLI로 변환되는 방식은?",
+      "answer": "메서드명 → 완성된 `TrainerConfig` 매핑인 `method_configs`가 `tyro.extras.subcommand_type_from_defaults`를 통해 CLI Union 타입이 된다. 따라서 별도 CLI 파서 없이 서브커맨드가 생성된다."
+    },
+    {
+      "id": "f3c26bb5-6371-4d49-8dd6-f96673b8e25a",
+      "question": "nerfstudio에서 템플릿 메서드 패턴이 적용된 클래스와 대표 훅은?",
+      "answer": "`Model`, `DataParser`, `DataManager`가 추상 훅을 정의하고 하위 클래스가 채운다. 훅 예: `populate_modules`, `get_outputs`, `get_loss_dict`, `_generate_dataparser_outputs`, `next_train`."
+    },
+    {
+      "id": "f19e2d77-97de-43f0-935d-ba19eb3b76a7",
+      "question": "`TensorDataclass`는 무엇이고 어떤 클래스들이 상속하는가?",
+      "answer": "dataclass 필드 전체에 대해 브로드캐스팅, 인덱싱, `.to(device)`, `reshape`을 자동 지원하는 구조체 배열 추상화다. `Cameras`, `RayBundle`, `RaySamples`, `Frustums`가 상속한다."
+    },
+    {
+      "id": "e37adf1f-4cec-41f3-85c1-9cf314b25ded",
+      "question": "nerfstudio의 콜백/훅 시스템은 어떻게 동작하는가?",
+      "answer": "모델이 `TrainingCallback`을 등록하면 Trainer가 `BEFORE_TRAIN_ITERATION`, `AFTER_TRAIN_ITERATION`, `AFTER_TRAIN` 시점에 호출한다. proposal 어닐링이나 Gaussian 밀도화 같은 스텝 의존 로직을 학습 루프 수정 없이 주입한다."
+    },
+    {
+      "id": "a220035e-82ce-43b6-b80c-3c2fd2accd2c",
+      "question": "nerfstudio의 플러그인 아키텍처가 사용하는 entry point group은?",
+      "answer": "`nerfstudio.method_configs`와 `nerfstudio.dataparser_configs`다. 외부 패키지가 `pip install`만으로 `ns-train <새메서드>`에 등장하며, 환경변수 `NERFSTUDIO_METHOD_CONFIGS`로도 주입 가능하다."
+    },
+    {
+      "id": "05330376-0db6-4a2e-8db2-a68ddf734f3e",
+      "question": "nerfstudio에서 전역 싱글턴 사이드채널로 구현된 모듈 두 개는?",
+      "answer": "`utils/writer.py`(로깅)와 `utils/profiler.py`(프로파일링)다. 모듈 레벨 전역 상태 + 데코레이터로 어디서든 접근 가능하게 만들어 의존성 주입을 우회한 실용적 선택이다."
+    },
+    {
+      "id": "02661b6a-8862-4911-a2aa-c44646d62584",
+      "question": "`ns-train`의 구현 모듈과 역할은?",
+      "answer": "`nerfstudio/scripts/train.py`이며 학습을 담당하는 주 진입점이다. pyproject의 `[project.scripts]`에 등록되어 있다."
+    },
+    {
+      "id": "241173af-d000-4f85-aefd-236a8d5b1fe4",
+      "question": "`ns-eval`과 `ns-render`의 역할 차이는?",
+      "answer": "`ns-eval`(scripts/eval.py)은 PSNR/SSIM/LPIPS 메트릭을 계산하고, `ns-render`(scripts/render.py)는 카메라 경로를 따라 영상을 렌더한다."
+    },
+    {
+      "id": "f21662e5-5ad5-4df6-9368-2868020d2fee",
+      "question": "`ns-install-cli`와 `ns-dev-test`는 각각 무엇을 하는가?",
+      "answer": "`ns-install-cli`는 셸 자동완성을 설치하고(scripts/completions/install.py), `ns-dev-test`는 CI 액션을 로컬에서 실행한다(scripts/github/run_actions.py)."
+    },
+    {
+      "id": "8071c205-b568-4314-a4f9-b5e2771f0422",
+      "question": "`ns-train` 부트스트랩에서 `method_configs` 임포트 시 발생하는 두 가지 동작은?",
+      "answer": "`discover_methods()`가 플러그인 entry_points를 스캔하고, `get_external_methods()`가 미설치 외부 메서드를 등록한다. 즉 모듈 로드 자체가 전역 딕셔너리를 구성하는 부작용을 갖는다."
+    },
+    {
+      "id": "82ff045a-6e9c-459c-aaff-9aeeab247d63",
+      "question": "`ns-train` 실행 시 설정이 저장되는 경로 형식은?",
+      "answer": "`outputs/<exp>/<method>/<ts>/config.yml`이다. `set_timestamp()`와 `save_config()`가 수행하며, 나중에 `ns-eval`/`ns-render`가 이를 로드해 동일한 파이프라인을 재구성한다."
+    },
+    {
+      "id": "8a70318e-b6d1-4ada-bddb-9de3f86e6d99",
+      "question": "`launch()` 함수는 device 수에 따라 어떻게 다르게 동작하는가?",
+      "answer": "world_size가 1이면 인프로세스로 학습 루프를 실행하고, 1보다 크면 `mp.spawn` + NCCL로 분산 학습을 띄운다."
+    },
+    {
+      "id": "41d9e80f-dfc4-486a-9c9c-28f9097999a7",
+      "question": "Trainer.setup()이 수행하는 주요 단계는?",
+      "answer": "pipeline 생성(DataManager + Model), `setup_optimizers()`로 파라미터 그룹별 Adam+스케줄러 구성, ViewerState 생성(viser 서버 기동), 재개 시 `_load_checkpoint()`, 그리고 `get_training_callbacks()` 수집이다."
+    },
+    {
+      "id": "dbe997b4-dbe2-49e6-ba81-c5e928bd63a9",
+      "question": "모델 생성 시 `config.model.setup()`에 전달되는 인자들은?",
+      "answer": "`scene_box`, `num_train_data`, `seed_points` 등이며, 이후 `populate_modules()`가 필드/샘플러/렌더러/손실/메트릭을 구축한다."
+    },
+    {
+      "id": "84b9f32e-b010-4b55-a0f0-7f52c21339e4",
+      "question": "학습 루프 1 스텝에서 뷰어와의 상호배제는 어떻게 처리되는가?",
+      "answer": "`with train_lock` 블록으로 학습 스텝과 뷰어 렌더가 상호배제된다. 또한 `training_state == \"paused\"`이면 학습 루프가 대기한다."
+    },
+    {
+      "id": "78bd285a-213d-4c6d-895c-068e1275fab0",
+      "question": "`BEFORE_TRAIN_ITERATION` 콜백에서 nerfacto가 하는 일은?",
+      "answer": "proposal 어닐링(`set_anneal`)과 샘플러 스케줄 갱신을 수행한다. 학습 초반에 PDF를 부드럽게 만들어 안정적으로 수렴하게 한다."
+    },
+    {
+      "id": "5d449a4a-5637-4563-a9d8-dd47c0e7d4f0",
+      "question": "`AFTER_TRAIN_ITERATION` 콜백에서 Splatfacto가 하는 일은?",
+      "answer": "Gaussian 밀도화와 가지치기(`step_post_backward`)를 수행한다. 학습 루프 코드를 수정하지 않고 파라미터 개수를 조절하는 방식이다."
+    },
+    {
+      "id": "3df62f85-435c-47c8-8c21-0cc7f5506fe8",
+      "question": "`DataManager.next_train(step)`이 반환하는 것은?",
+      "answer": "`(RayBundle, batch)` 튜플이다. batch에는 `image`, `mask` 등이 담기며 RayBundle에는 origins/directions/pixel_area 등이 담긴다."
+    },
+    {
+      "id": "11b0dd35-df4d-4089-9cdf-7bb65b70f404",
+      "question": "학습 루프에서 픽셀 샘플링부터 광선 생성까지의 흐름은?",
+      "answer": "CacheDataloader가 캐시된 이미지 배치를 내놓고, PixelSampler가 `(cam, y, x)` 픽셀 인덱스를 뽑고, RayGenerator가 ray_indices를 `RayBundle`(origins/directions/pixel_area)로 변환한다."
+    },
+    {
+      "id": "72434586-566f-4148-b1c0-dfb5b4be5ef5",
+      "question": "NerfactoModel의 forward에서 collider 이후 순서는?",
+      "answer": "`camera_optimizer.apply_to_raybundle`로 포즈 보정 → ProposalNetworkSampler로 계층적 제안 샘플링 → `field.forward`로 density/RGB/normals → `ray_samples.get_weights(density)` → 렌더러로 outputs 생성이다."
+    }
+  ]
+}
