@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "58c34e5e-a385-40cf-bb08-04eec068bdfb",
+      "question": "Splatfacto의 `trainer.train_iteration()` 한 번은 A~I 아홉 단계로 분해된다. 각 단계 이름을 순서대로 나열하면?",
+      "answer": "A. BEFORE 콜백(`step_cb`) → B. zero_grad → C. 데이터(`next_train`) → D. forward(`get_outputs`) → E. metrics/loss → F. backward → G. optimizer step → H. scheduler → I. AFTER 콜백(`step_post_backward`)."
+    },
+    {
+      "id": "f953bf9a-fa5f-4fe7-8935-24483ec6ba73",
+      "question": "A단계 BEFORE 콜백 `model.step_cb(optimizers, step)`은 무엇을 하는가?",
+      "answer": "매 스텝 시작에 `model.step`을 갱신하고 Trainer의 `optimizers`/`schedulers` 객체를 모델에 꽂아 준다. `model.optimizers is opt.optimizers`가 True로, 같은 객체를 공유한다."
+    },
+    {
+      "id": "cb137f14-f5d8-493d-9deb-d45f92f8a838",
+      "question": "Trainer가 모델에 optimizer를 콜백으로 주입해야 하는 이유는?",
+      "answer": "I단계의 densification이 가우시안 개수를 바꾸면 Adam의 모멘트 텐서(`exp_avg`, `exp_avg_sq`)도 같은 크기로 늘려야 하기 때문이다. 파라미터 값은 G에서만, 개수는 I에서만 바뀌므로 I가 optimizer 상태에 접근해야 한다."
+    },
+    {
+      "id": "57f155d4-edb7-4eee-8b5e-798ebc00bb14",
+      "question": "B단계 `optimizers.zero_grad_some(needs_zero)`에서 splatfacto 기본 설정은 어떤 그룹을 0으로 만드는가?",
+      "answer": "gradient accumulation을 지원하기 위해 `step % gradient_accumulation_steps[g] == 0`인 그룹만 고르지만, splatfacto 기본은 accumulation 1이라 매 스텝 전부를 0으로 만든다."
+    },
+    {
+      "id": "04251067-453f-48c5-a003-4072ef785157",
+      "question": "C단계 `datamanager.next_train(step)`은 이미지를 어떻게 선택하고 무엇을 반환하는가?",
+      "answer": "캐시된 이미지 중 이번 epoch에서 아직 안 본 것을 `train_unseen_cameras` 리스트에서 pop하고, 다 쓰면 다시 섞는다. 반환은 `(Cameras[1], {\"image\": uint8 [H,W,3]})`이다."
+    },
+    {
+      "id": "31e57520-9ddc-44c6-951b-d42c8ad20e53",
+      "question": "`next_train`이 반환한 카메라의 `metadata[\"cam_idx\"]`는 어떤 용도인가?",
+      "answer": "카메라 옵티마이저가 어떤 포즈를 보정할지 식별하는 인덱스다. splatfacto 기본에서는 camera_optimizer mode가 \"off\"라 실제 보정은 없다."
+    },
+    {
+      "id": "1bd491d5-c08b-4db7-a7cf-d1639eb2bf3b",
+      "question": "D단계 `model.get_outputs(camera)`를 펼친 D1~D7 하위 단계는?",
+      "answer": "D1 카메라 보정 → D2 해상도 스케줄 → D3 viewmat/K 계산 → D4 SH 차수 결정 → D5 gsplat rasterization → D6 `step_pre_backward`(means2d.retain_grad) → D7 배경 합성."
+    },
+    {
+      "id": "90528265-4947-46e9-8027-9b59e34ab7a9",
+      "question": "D2 해상도 스케줄 공식과 step 0에서의 downscale 값은?",
+      "answer": "$d = 2^{\\max(\\text{num\\_downscales} - \\lfloor step / \\text{resolution\\_schedule} \\rfloor,\\ 0)}$. step 0에서는 $d = 4$로, 학습 초반에는 저해상도로 시작해 점차 원 해상도로 올라간다."
+    },
+    {
+      "id": "fe4307a2-fa06-4d57-b473-df117dc10e16",
+      "question": "D3 뷰 행렬(viewmat)은 어떻게 구성되는가?",
+      "answer": "카메라 포즈 $c2w = [R \\mid t]$를 뒤집어 $\\text{viewmat} = \\begin{bmatrix} R^\\top & -R^\\top t \\\\ 0 & 1 \\end{bmatrix}$로 world→camera 변환을 만든다. 추가로 nerfstudio(OpenGL, $-z$ 전방)와 gsplat(OpenCV, $+z$ 전방) 규약 차이를 $y, z$ 축 부호 반전으로 맞춘다."
+    },
+    {
+      "id": "58c11181-3f6c-4512-8944-e03ce3baf40a",
+      "question": "D3에서 내부행렬 K는 downscale $d$에 대해 어떻게 축소되는가?",
+      "answer": "$K = \\frac{1}{d}\\begin{bmatrix} f_x & 0 & c_x \\\\ 0 & f_y & c_y \\\\ 0 & 0 & d \\end{bmatrix}$, 즉 $f_x, f_y, c_x, c_y$를 $1/d$배 한다. 코드에서는 `camera.rescale_output_resolution(1/d)`로 잠시 줄여 K, W, H를 뽑고 원복한다."
+    },
+    {
+      "id": "c43b43b0-9b58-46c7-a545-61a501daf7b6",
+      "question": "D4 SH 차수 `sh_degree_to_use`는 어떻게 결정되는가?",
+      "answer": "$\\min(\\lfloor step / \\text{sh\\_degree\\_interval} \\rfloor,\\ \\text{sh\\_degree}) = \\min(step // 1000, 3)$. step 0에서는 0차만 사용하며 1000스텝마다 한 차수씩 올린다."
+    },
+    {
+      "id": "70e5c4c9-1eb8-4868-be4d-e15a089824b6",
+      "question": "SH 계수 텐서 `colors_sh`는 어떻게 만들어지고 shape는?",
+      "answer": "`torch.cat((features_dc[:, None, :], features_rest), dim=1)`로 결합해 [N,16,3]이 된다. `sh_degree_to_use`가 $\\ell$이면 앞 $(\\ell+1)^2$개 밴드만 유효하다."
+    },
+    {
+      "id": "b2e8aefd-195e-49cd-b9f2-9f01cf6a830d",
+      "question": "D5 gsplat `rasterization` 호출 시 scales와 opacities에는 어떤 활성함수가 적용되는가?",
+      "answer": "파라미터는 raw 공간에 저장되고 호출 시점에 `exp(scales)`, `sigmoid(opacities)`를 적용한다. 즉 scales는 log 공간, opacities는 logit 공간에서 학습된다."
+    },
+    {
+      "id": "a71225c4-5814-4492-bca2-16086593a422",
+      "question": "가우시안 $i$의 3D 공분산 $\\Sigma_i$는 스케일과 회전으로 어떻게 표현되는가?",
+      "answer": "$s_i = \\exp(\\tilde s_i)$, 회전 $R(q_i)$에 대해 $\\Sigma_i = R S S^\\top R^\\top$이다. 이것이 화면에 투영되어 2D 가우시안 $\\mathcal N(\\mu_i^{2D}, \\Sigma_i^{2D})$로 픽셀에 기여한다."
+    },
+    {
+      "id": "ddd438a1-5874-4d32-87e1-28dcd101bb68",
+      "question": "래스터화에서 픽셀 $p$의 색 `render(p)`와 `alpha(p)`를 계산하는 알파 블렌딩 식은?",
+      "answer": "깊이 순으로 $\\text{render}(p) = \\sum_i c_i\\,\\alpha_i \\prod_{j<i}(1-\\alpha_j)$, $\\text{alpha}(p) = 1 - \\prod_i (1-\\alpha_i)$이다. 여기서 $\\alpha_i = \\sigma(\\tilde\\alpha_i)\\exp(-\\tfrac12 (p-\\mu_i)^\\top (\\Sigma_i^{2D})^{-1} (p-\\mu_i))$, $c_i$는 SH를 뷰 방향으로 평가한 색이다."
+    },
+    {
+      "id": "bc190442-546b-4111-bd6d-616763533ed6",
+      "question": "`rasterization`이 반환하는 세 값과 shape는?",
+      "answer": "`render` [1,H,W,3], `alpha` [1,H,W,1], 그리고 `info` 딕셔너리(radii, means2d 등)다. `info['radii'] > 0`으로 이번 뷰에 보이는 가우시안 개수를 셀 수 있다."
+    },
+    {
+      "id": "7e459813-ae1a-4910-9676-37a464ad0544",
+      "question": "D6 `strategy.step_pre_backward`는 무엇을 하는가?",
+      "answer": "`info[\"means2d\"].retain_grad()`를 호출해 backward 때 화면공간 2D 위치에 대한 그래디언트가 남도록 한다. 이 그래디언트는 I단계 densification 판단에 쓰인다."
+    },
+    {
+      "id": "a5f962ea-99ca-4cd8-a87f-194ab43c769a",
+      "question": "D7 배경 합성 공식과 랜덤 배경을 쓰는 이유는?",
+      "answer": "$\\text{rgb}(p) = \\text{clamp}(\\text{render}(p) + (1-\\text{alpha}(p))\\,b,\\ 0,\\ 1)$, $b \\sim U[0,1]^3$. 매 스텝 배경색이 바뀌어 가우시안이 배경색을 흉내내며 빈 공간을 덮는 것을 억제한다."
+    },
+    {
+      "id": "bd3a3403-c312-43b3-9f8c-85cff60895ac",
+      "question": "직접 계산한 D5+D7 결과와 원본 `get_outputs()`의 픽셀을 비교할 때 왜 `torch.manual_seed(123)`을 두 번 호출하는가?",
+      "answer": "D7 배경색이 `torch.rand`로 뽑히므로 같은 시드를 걸어야 같은 배경색이 나와 픽셀 단위 비교가 가능하다. 비교 후 이후 단계는 retain_grad 훅이 걸린 원본 호출의 `model.info`를 사용한다."
+    },
+    {
+      "id": "7247d9ab-b384-4bca-843d-f5cb1d601ae5",
+      "question": "E단계 `get_loss_dict`의 main_loss 계산 과정은?",
+      "answer": "GT를 `image/255` 후 학습 해상도로 평균 풀링 축소(`resize_image`)하고 배경 합성(RGB는 no-op)한 뒤, $\\mathcal L = (1-\\lambda)\\mathcal L_1 + \\lambda(1-\\mathrm{SSIM})$, $\\lambda = \\text{ssim\\_lambda} = 0.2$로 계산한다. 즉 0.8·L1 + 0.2·(1−SSIM)."
+    }
+  ]
+}

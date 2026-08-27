@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "b4fc87a9-8e70-4da9-b8d4-de949492e688",
+      "question": "L1 손실의 수식은?",
+      "answer": "$\\mathcal L_1 = \\frac{1}{3HW}\\sum_{p,c}|I_{p,c} - \\hat I_{p,c}|$, 즉 학습 해상도 GT와 렌더의 픽셀·채널 평균 절대 오차다. 픽셀 단위 색 오차를 벌점으로 준다."
+    },
+    {
+      "id": "4fdadef2-2136-4e46-8490-e28d3eb49788",
+      "question": "SSIM의 정의식과 splatfacto에서 쓰는 설정은?",
+      "answer": "$\\mathrm{SSIM}(x,y) = \\frac{(2\\mu_x\\mu_y + C_1)(2\\sigma_{xy} + C_2)}{(\\mu_x^2+\\mu_y^2 + C_1)(\\sigma_x^2+\\sigma_y^2 + C_2)}$, $C_1 = 0.01^2$, $C_2 = 0.03^2$. torchmetrics SSIM을 $11\\times11$ 가우시안 윈도우, data_range 1로 쓰며 윈도우별 값을 평균한다."
+    },
+    {
+      "id": "e84be813-ef13-4579-8974-29948280930d",
+      "question": "L1과 1−SSIM은 각각 어떤 종류의 오차를 벌점으로 주는가?",
+      "answer": "L1은 픽셀 단위 색 오차를, 1−SSIM은 국소 구조(대비·질감) 오차를 벌점으로 준다. 둘을 0.8:0.2로 섞는다."
+    },
+    {
+      "id": "c7740106-c11b-4c08-99c0-d69a9cb564ee",
+      "question": "모니터링용 PSNR의 계산식은?",
+      "answer": "$\\mathrm{PSNR} = -10\\log_{10}\\Big(\\frac{1}{3HW}\\sum_{p,c}(I_{p,c}-\\hat I_{p,c})^2\\Big)$, 즉 MSE 기준이다. `get_metrics_dict`가 psnr과 gaussian_count를 반환한다."
+    },
+    {
+      "id": "d63b08ed-4a75-4d26-847d-b28c5dcdfb36",
+      "question": "|GT − pred| 오차 맵에서 step 0에 오차가 가장 큰 영역은 어디인가?",
+      "answer": "하늘/배경처럼 초기 포인트가 없는 곳이다. 가우시안이 없어 랜덤 배경만 채워지므로 오차가 크다."
+    },
+    {
+      "id": "d3b9d2b1-f117-4d16-b44e-17356df16ef3",
+      "question": "F단계 backward에서 `grad_scaler.scale(loss)`가 하는 일은?",
+      "answer": "splatfacto 기본 `mixed_precision=False`라 GradScaler가 꺼져 있어 `scale()`은 항등이고 실질적으로 `loss.backward()`다. loss는 `loss_dict` 값들을 stack 후 sum한 것이다."
+    },
+    {
+      "id": "c003e2d9-0341-40c1-ad42-1f5b36d99e23",
+      "question": "역전파 후 생기는 두 종류의 그래디언트는?",
+      "answer": "6개 파라미터의 `.grad`(G단계 Adam이 사용)와 `info[\"means2d\"].absgrad`(I단계 densification 판단에 사용)다. 후자는 D6에서 retain한 화면공간 2D 위치의 절댓값 누적 그래디언트다."
+    },
+    {
+      "id": "3269b3c3-2f3d-4f01-89e7-f97b98cf40be",
+      "question": "absgrad가 일반 grad보다 densification 판단에 유리한 이유는?",
+      "answer": "가우시안의 화면 좌표는 여러 픽셀에 기여하므로 일반 grad $\\sum_p \\partial\\mathcal L/\\partial\\mu_i^{2D}|_p$는 부호가 반대인 기여가 상쇄되어 '양쪽으로 당겨지는' 가우시안을 놓친다. absgrad $= \\sum_p |\\cdot|$는 픽셀별 절댓값을 더해 그 신호를 보존하며 항상 $\\ge |\\text{grad}|$다."
+    },
+    {
+      "id": "4ad3bdeb-af09-4a8d-b30a-d3a0778d3d19",
+      "question": "step 0에서 `features_rest`와 `quats`의 그래디언트가 거의 0인 이유는?",
+      "answer": "`features_rest`는 sh_degree_to_use=0이라 고차 밴드가 forward에 쓰이지 않아 grad=0이다. `quats`는 초기 가우시안이 구(isotropic)라서 회전이 렌더에 영향을 주지 않아 grad≈1e-13이다."
+    },
+    {
+      "id": "30f59e49-588a-456b-83ad-29a4c4d5e20b",
+      "question": "안 보이는 가우시안(radii=0)의 means2d.absgrad 값은?",
+      "answer": "0이다. 래스터라이저를 거치지 않았으므로 그래디언트가 흐르지 않는다."
+    },
+    {
+      "id": "59f4b46e-f84f-4b6f-b220-c6a26253a1b2",
+      "question": "G단계 `optimizers.optimizer_scaler_step_some`은 어떻게 동작하는가?",
+      "answer": "파라미터 그룹마다 별도 Adam 인스턴스가 있고 각자 `step()`을 밟는다(6개 그룹). `max_norm` grad clipping은 splatfacto에서 전부 None이다."
+    },
+    {
+      "id": "fefa9c99-ee51-476d-8330-1b2a5abc610c",
+      "question": "Adam 갱신식과 splatfacto 기본 하이퍼파라미터는?",
+      "answer": "$m_t = \\beta_1 m_{t-1} + (1-\\beta_1) g_t$, $v_t = \\beta_2 v_{t-1} + (1-\\beta_2) g_t^2$, $\\theta_t = \\theta_{t-1} - \\eta\\frac{m_t/(1-\\beta_1^t)}{\\sqrt{v_t/(1-\\beta_2^t)} + \\epsilon}$. 기본값 $\\beta_1=0.9$, $\\beta_2=0.999$, $\\epsilon=10^{-15}$."
+    },
+    {
+      "id": "8c5d4f30-41cc-427a-945c-d563cc0602ac",
+      "question": "첫 Adam step($t=1$) 직후 |Δparam| ≈ lr 이 되는 이유는?",
+      "answer": "$t=1$이면 $\\hat m_1 = g_1$, $\\hat v_1 = g_1^2$이라 갱신량이 $\\eta\\, g_1/|g_1| = \\pm\\eta$로 그래디언트 크기와 무관하게 정확히 lr만큼 움직인다."
+    },
+    {
+      "id": "8afc8604-4034-477f-ae82-865093622bce",
+      "question": "Adam이 원소별로 독립적이라는 성질이 densification에 왜 중요한가?",
+      "answer": "가우시안 개수 N이 바뀌어도 각 행의 $(m, v)$를 같은 인덱스로 옮기기만 하면 되기 때문이다. gsplat은 grow/prune 시 `exp_avg`/`exp_avg_sq`를 같은 인덱스로 재배열하고 새 가우시안의 모멘트는 0으로 초기화한다."
+    },
+    {
+      "id": "45350f4d-221b-4984-82a9-1178249a0af2",
+      "question": "첫 optimizer step 후 Adam 내부 상태에 어떤 키가 생기는가?",
+      "answer": "`exp_avg`, `exp_avg_sq`(그리고 `step`)가 파라미터와 같은 shape로 생긴다. step 전에는 state가 비어 있다."
+    },
+    {
+      "id": "5e6a7333-b308-4da4-9757-3c44f8ec47ba",
+      "question": "splatfacto 6개 파라미터 그룹의 lr과 특징을 정리하면?",
+      "answer": "means lr 1.6e-4(스케줄러로 감쇠), scales(log 공간), quats(초기 구라 grad≈0), features_dc lr 2.5e-3(SH 0차, 색이 가장 빨리 움직임), features_rest(1000스텝 후부터 학습), opacities lr 0.05(logit 공간, 가장 큼)."
+    },
+    {
+      "id": "74ec692c-507a-4eb6-9d85-dc883d2dc5cc",
+      "question": "H단계 스케줄러는 어떤 그룹에 적용되며 lr은 어떻게 변하는가?",
+      "answer": "`means` 그룹만 스케줄러가 있다(camera_opt/bilateral_grid는 꺼져 있어 그룹 자체가 없음). 1.6e-4에서 1.6e-6으로 30k 스텝 동안 지수감쇠한다."
+    },
+    {
+      "id": "12902e5f-3e7b-4607-9cd6-a77710878452",
+      "question": "means lr을 지수감쇠시키는 의도는?",
+      "answer": "초반에는 위치를 크게 움직여 구조를 잡고, 후반에는 위치를 거의 고정하고 색/모양만 다듬기 위해서다."
+    },
+    {
+      "id": "39a2affe-9a25-4b3e-9b4f-7e78537b12cd",
+      "question": "`ExponentialDecayScheduler`의 lr 식과 스텝당 감쇠비는?",
+      "answer": "$\\eta(t) = \\eta_0 (\\eta_T/\\eta_0)^{t/T}$, 로그 공간의 선형 보간이다. $\\eta_0 = 1.6\\times10^{-4}$, $\\eta_T = 1.6\\times10^{-6}$, $T = 30000$이면 $\\eta(t+1)/\\eta(t) = (1/100)^{1/30000} \\approx 0.999847$."
+    }
+  ]
+}

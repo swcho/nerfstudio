@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "edf30414-5cd7-45a8-b89d-81be652a0f66",
+      "question": "스케줄러 step이 건너뛰어지는 조건은?",
+      "answer": "GradScaler의 scale이 줄어든 스텝, 즉 inf/nan으로 optimizer step을 건너뛴 스텝에는 스케줄러도 건너뛴다. `scale_before <= get_scale()`일 때만 `scheduler_step_all`을 호출하며, mixed_precision이 꺼져 있으면 항상 진행된다."
+    },
+    {
+      "id": "d02b0812-c636-4787-99e6-965cc4533106",
+      "question": "I단계 gsplat `DefaultStrategy.step_post_backward`의 전체 흐름은?",
+      "answer": "step ≥ refine_stop_iter(15000)이면 즉시 return. `_update_state`로 grad2d/count 누적 → step > 500이고 100스텝마다이며 step % 3000 ≥ 261이면 `_grow_gs`(복제/분할) + `_prune_gs` + state 리셋 → step % 3000 == 0이면 `reset_opa`."
+    },
+    {
+      "id": "6cb0c940-a8be-4fb3-a0aa-f749726dfe05",
+      "question": "`_update_state`가 누적하는 통계와 그 의미는?",
+      "answer": "보인 가우시안($r_i > 0$)에 대해 $\\text{grad2d}_i \\mathrel{+}= \\|\\text{absgrad}_i \\odot (W/2, H/2)\\|_2$, $\\text{count}_i \\mathrel{+}= 1$. `grad2d/count`(보였을 때의 평균 화면공간 그래디언트)가 '이 가우시안이 아직 잘 못 맞춘 영역을 덮고 있다'는 신호다."
+    },
+    {
+      "id": "e1e4964d-9531-413e-9b13-378f9e607934",
+      "question": "absgrad에 $(W/2, H/2)$를 곱하는 이유는?",
+      "answer": "absgrad는 NDC 단위($[-1,1]$)라서 픽셀 단위로 바꾸기 위해서다. 이렇게 하면 임계값 `densify_grad_thresh`가 해상도에 대해 일관된 의미를 가진다."
+    },
+    {
+      "id": "597b4445-ea16-43b1-8bd7-4ee748b87c1a",
+      "question": "refine(grow/prune) 조건 `step > 500 and step % 100 == 0 and step % 3000 >= 261`에서 각 항의 의미는?",
+      "answer": "500은 warmup_length(그 전엔 refine 안 함), 100은 refine_every, 3000은 reset_alpha_every·refine_every, 261은 pause_refine_after_reset이다. 알파 리셋 직후 261스텝은 불투명도가 회복될 때까지 refine을 쉰다."
+    },
+    {
+      "id": "aefa68be-cd96-4cfe-aefa-6966523528db",
+      "question": "`_grow_gs`에서 복제(clone)와 분할(split)은 어떻게 갈리는가?",
+      "answer": "$\\bar g_i = \\text{grad2d}_i/\\text{count}_i > \\tau_g$(0.0008)인 가우시안 중 $\\max_k \\exp(\\tilde s_{ik}) < \\tau_s$(densify_size_thresh 0.01)면 같은 파라미터를 하나 더 복제하고, $\\ge \\tau_s$면 2개로 분할하며 원본을 삭제한다."
+    },
+    {
+      "id": "af615bbc-d725-47b2-9de7-e6149546183d",
+      "question": "분할(split) 시 새 가우시안의 위치와 스케일은 어떻게 정해지는가?",
+      "answer": "$\\mu' = \\mu + R(q)(s \\odot z)$, $z \\sim \\mathcal N(0, I)$로 원본 분포에서 샘플링하고, 스케일은 $s' = s/1.6$으로 줄여 2개를 만든다."
+    },
+    {
+      "id": "bb139d02-3710-4119-ac26-3a141d30ca22",
+      "question": "작은 가우시안은 복제하고 큰 가우시안은 분할하는 것의 직관적 해석은?",
+      "answer": "작은 가우시안이 큰 그래디언트를 받으면 '표현력이 모자란' 상태라 복제해서 채우고, 큰 가우시안이면 '너무 뭉뚱그려 덮고 있는' 상태라 쪼개서 세분화한다."
+    },
+    {
+      "id": "68ef228e-4f46-4f63-a363-1800fbe2b358",
+      "question": "`_prune_gs`의 삭제 조건은?",
+      "answer": "$\\sigma(\\tilde\\alpha_i) < 0.1$인 가우시안을 지우고, step < 4000 동안은 화면공간 반경이 화면의 15%(0.15)를 넘는 거대 가우시안도 지운다."
+    },
+    {
+      "id": "09918535-4fc5-472d-8a31-5fb1bc56275e",
+      "question": "알파 리셋(`reset_opa`)의 동작과 목적은?",
+      "answer": "3000스텝마다 $\\tilde\\alpha_i \\leftarrow \\min(\\tilde\\alpha_i, \\text{logit}(0.2))$, 즉 불투명도를 0.2(=0.1·2)로 위에서 clamp한다. 모든 가우시안을 반투명으로 되돌려 쓸모없는 것은 다음 prune 전까지 다시 불투명해지지 못하고 걸러지게 한다."
+    },
+    {
+      "id": "5e3d5bde-ab6a-431b-a8bb-5cbed7701855",
+      "question": "step 0에서 `reset_opa`가 호출되는데 왜 변화가 없는가?",
+      "answer": "`step % 3000 == 0` 조건이 step 0에도 참이라 호출되지만, 초기 opacity가 0.1이라 0.2 clamp에 걸리지 않아 값이 변하지 않는다."
+    },
+    {
+      "id": "33a7c871-9efb-4bc8-86df-619159072d52",
+      "question": "grow/prune 시 optimizer에는 어떤 일이 일어나는가?",
+      "answer": "파라미터 텐서를 새로 만들면서 optimizer의 `param_groups`와 `exp_avg`/`exp_avg_sq`도 같은 인덱스로 재배열한다(gsplat `_update_param_with_optimizer`). 그래서 `gauss_params['means'] is param_groups[0]['params'][0]`가 여전히 True이고, 새 가우시안의 모멘트는 0으로 들어온다."
+    },
+    {
+      "id": "41dd9d9e-8bf9-49ce-9b2c-ad48d2a30092",
+      "question": "700스텝 실험에서 가우시안 개수가 늘어나는 스텝과 그 이유는?",
+      "answer": "step 600과 700이다. warmup_length 500을 넘고 refine_every 100의 배수이며 step % 3000 ≥ 261 조건도 만족하는 첫 스텝들이라 `_grow_gs`가 실행된다."
+    },
+    {
+      "id": "7f1e8e93-332c-4dfc-a9ad-30054546780b",
+      "question": "refine 후 `state['grad2d']`는 어떻게 되는가?",
+      "answer": "새 가우시안 개수에 맞는 shape로 리셋되고 sum이 0이 된다. 다음 refine까지 100스텝 동안 다시 누적한다."
+    },
+    {
+      "id": "9d6eb0f6-ae8d-43be-939f-efa1bfc25e3e",
+      "question": "A~I 각 단계에서 무엇이 바뀌는지 요약하면?",
+      "answer": "A `model.step`/`optimizers`, B `.grad`=0, C 이미지 1장 선택, D 가우시안→픽셀(gsplat CUDA), E loss 스칼라, F 6개 `.grad`+`means2d.absgrad`, G 6개 파라미터 값(Adam×6), H means lr, I grad2d/count 누적 → 100스텝마다 파라미터 개수+Adam 상태 크기."
+    },
+    {
+      "id": "0317aa72-681f-4e8f-9c7e-f9fb6223179e",
+      "question": "파라미터 '값'과 '개수'는 각각 어느 단계에서만 바뀌는가?",
+      "answer": "값은 G(optimizer step)에서만, 개수는 I(strategy.step_post_backward)에서만 바뀐다. 둘이 분리되어 있고 I가 optimizer 상태까지 손대야 하기 때문에 A의 optimizer 주입이 필요하다."
+    },
+    {
+      "id": "068abbb9-3e45-4a28-8916-a7625b7b5a26",
+      "question": "`refine_stop_iter`(stop_split_at) 15000 이후 `step_post_backward`는 무엇을 하는가?",
+      "answer": "아무것도 하지 않고 즉시 return한다. 15000스텝 이후로는 gaussian 개수가 고정되고 파라미터 값만 학습된다."
+    },
+    {
+      "id": "daf7e648-4caa-4566-ac62-8723a83cb004",
+      "question": "이 분석 스크립트는 어떤 데이터셋과 설정으로 실행되는가?",
+      "answer": "mipnerf360 garden 데이터셋을 `ColmapDataParserConfig(downscale_factor=4, load_3D_points=True)`로 로드하고, `method_configs[\"splatfacto\"]`를 deepcopy해 `trainer.setup(test_mode=\"test\")`로 셋업한다. `TORCHDYNAMO_DISABLE=1`을 설정한다."
+    },
+    {
+      "id": "9cfbc985-b99e-4e69-a18b-136f3ab7f0bf",
+      "question": "`train_step` 함수에서 AFTER 콜백은 어떻게 호출되는가?",
+      "answer": "`cb.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)`으로, 이는 `model.step_post_backward(step)`과 동일하다. BEFORE 콜백은 `BEFORE_TRAIN_ITERATION` 위치로 호출한다."
+    }
+  ]
+}
