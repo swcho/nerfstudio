@@ -58,7 +58,7 @@ plt.rcParams["axes.unicode_minus"] = False
 from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanager
 from nerfstudio.data.dataparsers.colmap_dataparser import ColmapDataParserConfig
-from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.engine.trainer import Trainer, TrainerConfig
 from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 
@@ -73,7 +73,8 @@ config.vis = "tensorboard"
 config.logging.local_writer.enable = False
 config.set_timestamp()
 
-trainer = config.setup(local_rank=0, world_size=1)
+# InstantiateConfig.setup() 은 -> Any 라 타입이 죽음. TrainerConfig._target == Trainer 이므로 명시.
+trainer: Trainer = config.setup(local_rank=0, world_size=1)
 trainer.setup(test_mode="test")
 pipeline = trainer.pipeline
 assert isinstance(pipeline, VanillaPipeline)
@@ -84,6 +85,124 @@ assert isinstance(dm, FullImageDatamanager)
 opt = trainer.optimizers  # nerfstudio.engine.optimizers.Optimizers — 파라미터 그룹별 Adam + 스케줄러 묶음
 print(f"가우시안 {model.num_points:,}개 | optimizer 그룹: {list(opt.optimizers)} | 스케줄러: {list(opt.schedulers)}")
 print("mixed_precision:", config.mixed_precision, "→ GradScaler enabled =", trainer.grad_scaler.is_enabled())
+
+
+# %% [markdown]
+# ## 0. optimizer 설정 — 8개 선언, 6개 생성
+#
+# 위 출력에서 `optimizer 그룹`이 6개, `스케줄러`가 1개만 찍힙니다. 왜 그런지 보려면 optimizer가 **어디서 어떻게 만들어지는지**부터 봐야 합니다.
+#
+# nerfstudio는 모델 전체에 optimizer 하나를 두지 않습니다. **파라미터 그룹마다 독립적인 Adam + 스케줄러**를 붙이고, 두 축을 그룹 이름(문자열)으로 join합니다:
+#
+# ```
+# TrainerConfig.optimizers: Dict[group_name, {"optimizer": OptimizerConfig, "scheduler": SchedulerConfig | None}]
+#                                   │            ← method_configs.py:607-644 에 선언
+#                                   ├── 그룹 이름으로 join (Optimizers.__init__, optimizers.py:82-114)
+#                                   │
+# Model.get_param_groups() -> Dict[group_name, List[Parameter]]   ← splatfacto.py:420-430 이 결정
+# ```
+#
+# 모델이 내놓은 그룹이 config에 없으면 그 자리에서 `RuntimeError`. 반대로 **config에만 있고 모델이 안 내놓는 그룹은 조용히 무시**됩니다 — 이게 8 vs 6의 정체입니다.
+#
+# ### splatfacto의 파라미터 그룹
+#
+# | 그룹 | 최적화 대상 | shape | lr | scheduler |
+# |---|---|---|---|---|
+# | `means` | 가우시안 3D 중심 좌표 | (N, 3) | `1.6e-4` | ExpDecay → `1.6e-6` @30k |
+# | `scales` | log 스케일 (축별 크기) | (N, 3) | `5e-3` | 없음 (상수) |
+# | `quats` | 회전 쿼터니언 | (N, 4) | `1e-3` | 없음 |
+# | `opacities` | logit 불투명도 | (N, 1) | `5e-2` | 없음 |
+# | `features_dc` | SH 0차 = 시점 독립 기본 색 | (N, 3) | `2.5e-3` | 없음 |
+# | `features_rest` | SH 1~3차 = 시점 의존 색 | (N, 15, 3) | `2.5e-3 / 20` = `1.25e-4` | 없음 |
+# | ~~`camera_opt`~~ | 카메라 pose 보정 | (n_cams, 6) | `1e-4` | warmup 1k → `5e-7` @30k |
+# | ~~`bilateral_grid`~~ | 이미지별 ISP 보정 격자 | (n_cams,16,16,8,12) | `2e-3` | warmup 1k → `1e-4` @30k |
+#
+# 전부 `AdamOptimizerConfig(eps=1e-15)`. 취소선 두 개는 조건부라 기본 실행에서 **생성되지 않습니다**:
+#
+# - `camera_opt` → `camera_optimizer.mode != "off"` 일 때만 ([camera_optimizers.py:200-207](../nerfstudio/cameras/camera_optimizers.py#L200-L207)). splatfacto 기본값이 `"off"`라서 D1 단계에서 보정량이 0으로 나옵니다.
+# - `bilateral_grid` → `use_bilateral_grid=True` 일 때만 (기본 `False`).
+#
+# lr 값은 3DGS 원논문 설정을 그대로 가져온 것입니다. 두 가지가 눈에 띕니다:
+#
+# - **`features_rest`가 `features_dc`의 1/20** — 고차 SH는 시점 의존 성분이라 빨리 움직이면 floater/과적합이 생깁니다. (G단계 표에서 이 둘의 Δ 차이로 확인됩니다.)
+# - **`means`에만 스케줄러** — 초반엔 SfM 포인트를 정렬하느라 크게 움직여야 하고, 후반엔 고정되어야 densification이 수렴합니다. H단계 그래프가 이 곡선입니다.
+#
+# ### OptimizerConfig 필드 ([optimizers.py:33-71](../nerfstudio/engine/optimizers.py#L33-L71))
+#
+# | 필드 | 의미 |
+# |---|---|
+# | `lr` | 학습률. **스케줄러의 `lr_init`으로도 쓰인다** (아래 참조) |
+# | `eps` | Adam epsilon. splatfacto는 `1e-15` — G단계 갱신식의 $\epsilon$ |
+# | `weight_decay` | `AdamOptimizerConfig` / `RAdamOptimizerConfig`에만 존재 |
+# | `max_norm` | grad clipping 임계값. splatfacto는 전부 `None` |
+#
+# `setup()`은 `_target`과 `max_norm`만 빼고 **나머지 필드를 그대로 `**kwargs`로** torch optimizer에 넘깁니다. 그래서 dataclass에 필드를 추가하면 자동 전달되지만, torch가 모르는 이름을 넣으면 `TypeError`가 납니다. `max_norm`만 예외적으로 torch에 안 넘기고 nerfstudio가 step 직전에 직접 `clip_grad_norm_`을 겁니다 ([optimizers.py:159-172](../nerfstudio/engine/optimizers.py#L159-L172) — G단계에서 호출).
+#
+# ### Scheduler 설정 ([schedulers.py:92-137](../nerfstudio/engine/schedulers.py#L92-L137))
+#
+# | 필드 | 기본 | 의미 |
+# |---|---|---|
+# | `lr_pre_warmup` | `1e-8` | warmup 시작 lr |
+# | `lr_final` | `None` | 종료 lr. None이면 `lr_init` (= 감쇠 없음) |
+# | `warmup_steps` | `0` | warmup 구간 길이 |
+# | `max_steps` | `100000` | 이 스텝에서 `lr_final` 도달 |
+# | `ramp` | `"cosine"` | warmup 곡선 (`"linear"` 가능) |
+#
+# 시작 lr(`lr_init`)은 스케줄러 config가 아니라 **짝지어진 optimizer의 `lr`** 에서 읽습니다 ([optimizers.py:105](../nerfstudio/engine/optimizers.py#L105)). 그래서 optimizer의 `lr`만 바꿔도 감쇠 스케줄 전체가 따라 스케일됩니다.
+#
+# ⚠️ **`max_steps`는 `TrainerConfig.max_num_iterations`와 자동 동기화되지 않습니다.** `--max-num-iterations 10000`으로 줄이면 `means` lr은 `1.6e-6`까지 못 내려가고 중간(약 `7e-6`)에서 학습이 끝납니다. 스텝 수를 바꿀 땐 스케줄러 `max_steps`도 같이 넘겨야 합니다.
+#
+# ### CLI 오버라이드
+#
+# 언더스코어는 대시로 바뀝니다:
+#
+# ```bash
+# ns-train splatfacto --data DATA \
+#   --optimizers.means.optimizer.lr 1e-4 \
+#   --optimizers.means.scheduler.lr-final 1e-6 \
+#   --optimizers.means.scheduler.max-steps 10000 \
+#   --optimizers.features-dc.optimizer.lr 0.01 \
+#   --optimizers.camera-opt.optimizer.lr 1e-3 \
+#   --pipeline.model.camera-optimizer.mode SO3xR3   # ← 이게 없으면 camera_opt 그룹 자체가 안 생김
+# ```
+#
+# 최종 해석된 값은 `outputs/<exp>/<method>/<timestamp>/config.yml`에 그대로 덤프됩니다.
+#
+# ### 프리셋 3개 차이
+#
+# `splatfacto` / `splatfacto-big` / `splatfacto-mcmc`의 **optimizers 블록은 완전히 동일**합니다. 차이는 전부 `SplatfactoModelConfig` 쪽:
+#
+# | | 모델 config 차이 |
+# |---|---|
+# | `splatfacto` | 기본값 |
+# | `splatfacto-big` | `cull_alpha_thresh=0.005`, `densify_grad_thresh=0.0005` (가우시안을 더 많이 남김) |
+# | `splatfacto-mcmc` | `strategy="mcmc"`, `cull_alpha_thresh=0.005`, `stop_split_at=25000` |
+#
+# MCMC를 쓰면 I단계에서 `self.schedulers["means"].get_last_lr()[0]`을 읽어가 **현재 means lr에 비례하는 노이즈를 좌표에 주입**합니다 ([splatfacto.py:365-385](../nerfstudio/models/splatfacto.py#L365-L385)). 즉 `means` lr을 만지면 학습률과 샘플링 노이즈 세기가 동시에 변합니다.
+
+# %%
+declared = config.optimizers
+created = set(opt.optimizers)
+
+print(f"{'group':16s} {'생성':^6s} {'lr':>10s} {'eps':>8s} {'max_norm':>9s}  scheduler")
+for name, cfg in declared.items():
+    o, s = cfg["optimizer"], cfg["scheduler"]
+    sch = "None (상수 lr)" if s is None else (
+        f"{type(s).__name__[: -len('Config')]}(lr_final={s.lr_final:.1e}, max_steps={s.max_steps}, warmup={s.warmup_steps})"
+    )
+    print(f"{name:16s} {'O' if name in created else '·':^6s} {o.lr:10.2e} {o.eps:8.0e} {str(o.max_norm):>9s}  {sch}")
+
+missing = sorted(set(declared) - created)
+print(f"\n선언 {len(declared)}개 / 실제 생성 {len(created)}개 — {missing} 는 모델이 파라미터를 안 내놓아 생성되지 않음")
+print("  camera_optimizer.mode =", config.pipeline.model.camera_optimizer.mode, "| use_bilateral_grid =", config.pipeline.model.use_bilateral_grid)
+
+# 스케줄러의 시작 lr은 scheduler config가 아니라 짝지어진 optimizer의 lr에서 온다
+print(f"\nmeans: optimizer.lr = {declared['means']['optimizer'].lr:.2e} → 스케줄러 현재 lr = {opt.schedulers['means'].get_last_lr()[0]:.2e}  (일치)")
+print(f"max_num_iterations = {config.max_num_iterations} vs means scheduler.max_steps = {declared['means']['scheduler'].max_steps}"
+      "  ← 둘은 자동 동기화되지 않는다")
+
+# gradient accumulation은 그룹마다 다른 주기를 줄 수 있다 (config 기본 {} → defaultdict가 전부 1로 채움)
+print("\ngradient_accumulation_steps:", {g: trainer.gradient_accumulation_steps[g] for g in opt.parameters})
 
 
 # %% [markdown]
@@ -330,7 +449,7 @@ print("  (안 보이는 가우시안은 grad=0 — 래스터라이저를 안 거
 
 
 # %% [markdown]
-# ## G. optimizer step — `optimizers.optimizer_scaler_step_some(grad_scaler, needs_step)` ([optimizers.py:145-160](../nerfstudio/engine/optimizers.py#L145-L160))
+# ## G. optimizer step — `optimizers.optimizer_scaler_step_some(grad_scaler, needs_step)` ([optimizers.py:159-172](../nerfstudio/engine/optimizers.py#L159-L172))
 #
 # 그룹마다 별도 Adam 인스턴스가 있고 각자 `step()`을 밟습니다. `max_norm`(grad clipping)은 splatfacto에선 전부 None.
 # 첫 step 직후 Adam 내부 상태(`exp_avg`, `exp_avg_sq`)가 파라미터와 같은 shape로 생깁니다 — I단계에서 이 텐서들이 리사이즈되는 걸 볼 겁니다.
