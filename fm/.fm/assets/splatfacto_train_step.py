@@ -226,13 +226,66 @@ print("(model.optimizers is opt.optimizers) =", model.optimizers is opt.optimize
 # %% [markdown]
 # ## B. zero_grad — `optimizers.zero_grad_some(needs_zero)` ([trainer.py:494-497](../nerfstudio/engine/trainer.py#L494-L497))
 #
-# gradient accumulation을 지원하기 위해 그룹별로 "이번 스텝에 0으로 만들 그룹"을 고르지만, splatfacto 기본은 accumulation 1이라 **매 스텝 전부** 0으로 만듭니다.
+# 평범한 PyTorch 루프라면 `optimizer.zero_grad()` 한 줄이면 끝납니다. nerfstudio에도 `zero_grad_all()`이 있는데([optimizers.py:134-137](../nerfstudio/engine/optimizers.py#L134-L137)) trainer는 굳이 **대상을 골라서** `zero_grad_some()`을 부릅니다. 이유는 gradient accumulation입니다.
+#
+# ### gradient accumulation이란
+#
+# GPU 메모리 때문에 배치를 크게 못 잡을 때, 여러 스텝에 걸쳐 `.grad`를 **누적**한 뒤 한 번에 `step()`하는 기법입니다. 누적하려면 매 스텝 grad를 지우면 안 되고 **누적 주기의 첫 스텝에서만** 지워야 합니다. 그래서 "이번 스텝에 지울 그룹"을 고르는 분기가 생깁니다.
+#
+# ### B와 G는 한 쌍 — 조건식 해부
+#
+# 주기가 $k$인 그룹에 대해 두 조건이 짝을 이룹니다:
+#
+# | 위치 | 조건 | 참이 되는 스텝 | 역할 |
+# |---|---|---|---|
+# | **B** zero_grad | `step % k == 0` | 0, k, 2k, … | 주기의 **첫** 스텝에서 grad를 비움 |
+# | **G** optimizer step | `step % k == k-1` | k−1, 2k−1, … | 주기의 **마지막** 스텝에서 갱신 |
+#
+# 즉 `[0 … k−1]` 구간 동안 F(backward)가 grad를 쌓고, 마지막에 G가 한 번 갱신합니다. B만 보면 왜 이런 조건인지 알 수 없고, G의 `needs_step`([trainer.py:505-509](../nerfstudio/engine/trainer.py#L505-L509))과 같이 읽어야 의미가 통합니다.
+#
+# ### 왜 splatfacto에선 항상 "전부"인가
+#
+# `gradient_accumulation_steps`는 `int`가 아니라 **`Dict[str, int]`** 입니다([trainer.py:87](../nerfstudio/engine/trainer.py#L87)) — 파라미터 그룹마다 optimizer가 분리돼 있으니 주기도 그룹별로 다르게 줄 수 있습니다(`means`는 매 스텝, `features_rest`는 4스텝마다 같은 식). `zero_grad_all()` 대신 `_some()`이 존재하는 이유가 이것입니다.
+#
+# 값이 흘러가는 경로:
+#
+# ```
+# TrainerConfig.gradient_accumulation_steps = {}          # splatfacto는 아무것도 지정하지 않음
+#         ↓  trainer.py:129-130
+# self.gradient_accumulation_steps = defaultdict(lambda: 1)
+# self.gradient_accumulation_steps.update({})             # 여전히 비어 있음
+#         ↓  조회 시
+# trainer.gradient_accumulation_steps["means"]  →  1      # defaultdict가 1을 채워 반환
+# ```
+#
+# $k=1$ 이면 B의 `step % 1 == 0` 도, G의 `step % 1 == 0` 도 **항상 참**입니다. 결국 평범한 `zero_grad(); backward(); step()` 루프와 완전히 같아집니다 — 분기는 남아 있지만 아무것도 걸러내지 않습니다.
+#
+# ### "0으로" 가 아니라 "None으로"
+#
+# `zero_grad_some`은 인자 없이 `optimizer.zero_grad()`를 호출하는데([optimizers.py:139-143](../nerfstudio/engine/optimizers.py#L139-L143)), PyTorch 기본값이 `set_to_none=True`라 **grad를 0으로 채우는 게 아니라 `None`으로 만듭니다**.
+#
+# 이게 accumulation과 맞물리는 지점이기도 합니다. `.grad`가 `None`이면 첫 `backward()`가 **대입**하고 이후 backward들이 **덧셈**합니다 — "주기 첫 스텝에서만 None으로 만든다"가 곧 누적 의미론입니다.
+#
+# (아래 `means.grad is None` 출력은 `True`지만, `STEP=0`은 backward 전이라 원래도 `None`이어서 이 출력만으로는 두 경우를 구분하지 못합니다. G 이후 다시 찍어보면 0이 아닌 값이 들어 있는 걸 볼 수 있습니다.)
+#
+# ### 실제로 켠다면 (splatfacto 기준 함정 2개)
+#
+# - **loss를 나누지 않습니다.** [trainer.py:503](../nerfstudio/engine/trainer.py#L503)의 `loss = functools.reduce(torch.add, ...)`에는 accumulation 횟수로 나누는 로직이 없습니다. $k$스텝 누적하면 grad가 평균이 아니라 **합**이 됩니다. Adam은 스케일에 대체로 불변이라 영향이 크진 않지만 완전히 없지도 않습니다.
+# - **densification과 충돌합니다.** I단계에서 가우시안 개수가 바뀌면 누적 중이던 `.grad`가 무효가 됩니다. `refine_every`(100)와의 주기 관계를 반드시 따져야 합니다.
 
 # %%
 needs_zero = [g for g in opt.parameters if STEP % trainer.gradient_accumulation_steps[g] == 0]
 opt.zero_grad_some(needs_zero)
 print("zero_grad 대상:", needs_zero)
-print("means.grad is None:", model.means.grad is None)
+print("means.grad is None:", model.means.grad is None, " ← set_to_none=True (기본값)")
+
+# B와 G의 조건이 주기 k에 따라 어떻게 짝을 이루는지 (실행에 영향 없는 시뮬레이션)
+print(f"\n{'k':>2s}  {'zero_grad (step % k == 0)':28s} {'step (step % k == k-1)':24s}")
+for k in (1, 2, 4):
+    z = [s for s in range(8) if s % k == 0]
+    p = [s for s in range(8) if s % k == k - 1]
+    print(f"{k:>2d}  {str(z):28s} {str(p):24s}")
+print(f"→ splatfacto는 전 그룹 k=1: {dict.fromkeys(opt.parameters, 1)}")
 
 
 # %% [markdown]
@@ -451,7 +504,22 @@ print("  (안 보이는 가우시안은 grad=0 — 래스터라이저를 안 거
 # %% [markdown]
 # ## G. optimizer step — `optimizers.optimizer_scaler_step_some(grad_scaler, needs_step)` ([optimizers.py:159-172](../nerfstudio/engine/optimizers.py#L159-L172))
 #
-# 그룹마다 별도 Adam 인스턴스가 있고 각자 `step()`을 밟습니다. `max_norm`(grad clipping)은 splatfacto에선 전부 None.
+# ### 대상 선택 — B의 짝
+#
+# `needs_step`의 조건은 `step % k == k-1`, B의 `step % k == 0`과 한 쌍입니다(B 섹션 표 참조). 주기 `[0 … k−1]` 동안 F가 grad를 쌓고 마지막 스텝에서 여기가 한 번 갱신합니다. splatfacto는 전 그룹 $k=1$이라 **매 스텝 6개 전부** 갱신됩니다.
+#
+# ### `optimizer_scaler_step_some` 내부 3단계
+#
+# 그룹마다 별도 Adam 인스턴스가 있고, 각 그룹에 대해 이 순서를 밟습니다 ([optimizers.py:159-172](../nerfstudio/engine/optimizers.py#L159-L172)):
+#
+# 1. **grad clipping** — `max_norm`이 `None`이 아니면 `grad_scaler.unscale_(optimizer)` 후 `clip_grad_norm_`. 스케일된 grad를 그대로 클립하면 임계값 의미가 깨지므로 반드시 unscale이 먼저입니다. splatfacto는 전 그룹 `max_norm=None`이라 이 분기를 타지 않습니다.
+# 2. **grad 유무 확인** — `any(any(p.grad is not None ...))`. grad가 하나도 없는 optimizer는 통째로 건너뜁니다. splatfacto 6개 그룹은 전부 forward에 참여하므로(값이 0일 뿐 `None`은 아님) 실제로 걸리진 않는, 다른 모델을 위한 방어 코드입니다.
+# 3. **`grad_scaler.step(optimizer)`** — `mixed_precision=False`라 GradScaler는 `enabled=False`로 만들어지고([trainer.py:137](../nerfstudio/engine/trainer.py#L137)), 이때 `scale()`은 loss를 그대로 반환하고 `step()`은 `optimizer.step()`으로 직행합니다. AMP를 켜면 여기서 inf/nan 검사가 붙고, 검사에 걸린 스텝은 갱신을 건너뛴 뒤 scale을 줄입니다 — H단계가 `scale` 비교로 스케줄러를 같이 건너뛰는 이유입니다.
+#
+# ### Adam 상태는 그룹마다 따로
+#
+# 그룹당 optimizer 하나 · 파라미터 텐서 하나이므로 `opt.optimizers[name].param_groups`의 길이는 항상 1입니다. 아래에서 `param_groups[0]["lr"]`로 lr을 읽는 것도, F단계에서 그룹별 lr을 한 줄로 찍은 것도 이 구조 덕분입니다. $\beta_1, \beta_2$, step 카운터 $t$ 도 그룹별로 독립입니다.
+#
 # 첫 step 직후 Adam 내부 상태(`exp_avg`, `exp_avg_sq`)가 파라미터와 같은 shape로 생깁니다 — I단계에서 이 텐서들이 리사이즈되는 걸 볼 겁니다.
 #
 # Adam 갱신식 ($g_t$ = 그래디언트, `exp_avg` $= m_t$, `exp_avg_sq` $= v_t$, splatfacto 기본 $\beta_1=0.9,\ \beta_2=0.999,\ \epsilon=10^{-15}$):
