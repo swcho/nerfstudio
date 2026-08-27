@@ -96,3 +96,7 @@ p_new    = cat([p[rest], p_split])                 # rest = ~mask → 원본 제
 3. clone은 원본 유지(+1), split은 원본 삭제 후 $s/1.6$인 2개(+1 순증).
 4. 복제 먼저, split 마스크는 0으로 패딩 → 새 복제본은 같은 라운드에 split 안 됨.
 5. `refine_scale2d_stop_iter` 이전에는 화면공간 반경 규칙이 split을 추가로 강제할 수 있다(nerfstudio 기본 4000).
+
+## 인포그래픽
+
+![nano 인포그래픽](nano.jpg)

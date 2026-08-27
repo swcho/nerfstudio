@@ -61,3 +61,7 @@ gsplat `DefaultStrategy`: `means2d.absgrad`를 픽셀 단위로 환산해 `grad2
 - `.fm/assets/splatfacto_train_step.py` — A~I를 셀 하나씩 재현하고 원본과 일치를 검증한 노트북
 - `nerfstudio/engine/trainer.py` `train()` L246-273, `train_iteration()` L487-530
 - `nerfstudio/models/splatfacto.py` `step_cb` L407-410, `get_outputs` L485-600, loss L631-689
+
+## 인포그래픽
+
+![nano 인포그래픽](nano.jpg)
