@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "4e5179b8-4e2c-49ac-895e-aa820436d358",
+      "question": "구면 조화 함수(Spherical Harmonics)를 수학적으로 어떻게 정의하는가?",
+      "answer": "구면 좌표계에서 정의되는 함수로, 구면에서 라플라스 방정식의 해의 정규 직교 기저다. 전자기학과 양자역학 등 구면 대칭인 계를 다룰 때 쓰인다."
+    },
+    {
+      "id": "1b620589-6dc1-4fb6-ac0d-070d9cf3e85c",
+      "question": "이 글에서 구면 조화 함수를 활용하는 렌더링 응용 사례는 무엇인가?",
+      "answer": "Irradiance Map을 Direct3D 11/12로 구현하면서 구면 조화 함수로 데이터를 압축하는 사례를 다룬다. 구면 조화 함수의 몇 가지 특징만 이해해도 렌더링 영역에서 도구로 사용할 수 있다."
+    },
+    {
+      "id": "8df0428f-14a4-4892-a06a-dd0bff8337ca",
+      "question": "Irradiance Map이란 무엇인가?",
+      "answer": "이미지를 광원으로 사용하는 IBL의 일종으로, Diffuse 반사를 위해 사전에 필터링해 둔 이미지다. 360도 전 방향을 담을 수 있도록 대체로 큐브맵을 사용한다."
+    },
+    {
+      "id": "28f0723d-416d-449c-9c16-bf5753bc84db",
+      "question": "IBL(Image Based Lighting)이란 무엇인가?",
+      "answer": "이미지를 광원으로 사용하는 조명 기법이다. Diffuse 반사용으로 미리 필터링한 결과가 Irradiance Map이다."
+    },
+    {
+      "id": "6159a648-0c22-42ce-927a-b62dc08e4b7e",
+      "question": "Irradiance Map을 생성하기 위한 렌더링 방정식은 무엇인가?",
+      "answer": "$L_r(x,\\omega_o)=L_e(x,\\omega_o)+\\int_{\\Omega} f_r(x,\\omega_i,\\omega_o) L_i(x,\\omega_i)(\\omega_i \\cdot n) d\\omega_i$ 이다. 360도 전 방향에 대해 이 식을 계산하면 Irradiance Map을 얻는다."
+    },
+    {
+      "id": "f08dd91a-85e0-495b-93b9-36b7560729bd",
+      "question": "렌더링 방정식의 각 기호($x$, $\\omega_o$/$\\omega_i$, $\\Omega$, $f_r$, $L_i$)는 무엇을 뜻하는가?",
+      "answer": "$x$는 반사 표면, $\\omega_o$/$\\omega_i$는 빛이 나가는/들어오는 방향, $\\Omega$는 반구 공간, $f_r$은 BRDF, $L_i$는 입사되는 radiance다. $L_r$은 반사되는 radiance를 뜻한다."
+    },
+    {
+      "id": "9ecd3cd1-4bec-4d88-b062-1f5d18610f96",
+      "question": "Diffuse 반사에서 렌더링 방정식을 단순화할 수 있는 두 가지 근거는 무엇인가?",
+      "answer": "첫째, 주로 쓰이는 Lambert BRDF는 상수이므로 적분 밖으로 빼낼 수 있다. 둘째, 반사 표면에서 방출되는 빛($L_e$)이 없다고 가정할 수 있다."
+    },
+    {
+      "id": "57455f71-224a-4712-a44a-e79c2bf202ef",
+      "question": "단순화된 반사 radiance 식은 무엇인가?",
+      "answer": "$L_r(x,\\omega_o)=\\frac{\\sigma}{\\pi}\\int_{\\Omega} L_i(x,\\omega_i)(\\omega_i \\cdot n) d\\omega_i$ 이다. 여기서 $\\sigma$는 표면의 알베도다."
+    },
+    {
+      "id": "7504d24c-cdd0-41e0-b34c-cce4d4020ba4",
+      "question": "Irradiance $E(x)$의 정의식은 무엇인가?",
+      "answer": "$E(x)=\\int_{\\Omega} L_i(x,\\omega_i)(\\omega_i \\cdot n) d\\omega_i$ 로, 단순화된 반사 식에서 Lambert BRDF 항을 제외한 것이다."
+    },
+    {
+      "id": "b303b1ec-f4a0-4ed7-bfbc-26204aff7d73",
+      "question": "원본 큐브맵이 2048x2048인데도 Irradiance Map을 32x32로 만들어도 괜찮은 이유는?",
+      "answer": "Diffuse 반사는 주파수가 낮아 세밀한 디테일이 필요 없기 때문이다. 또한 텍스쳐 보간이 적용되므로 작은 큐브맵으로도 시각적 품질이 유지된다."
+    },
+    {
+      "id": "8a3823df-7669-4cac-81ec-a61197523b67",
+      "question": "Irradiance Map용 큐브맵을 만들 때 원본 큐브맵의 trait에서 바꾸는 항목은 무엇인가?",
+      "answer": "`m_width`/`m_height`를 32로 줄이고, `m_format`을 `R8G8B8A8_UNORM_SRGB`로 지정하며, `m_bindType`에 `RenderTarget`을 추가한다. 렌더 타겟으로 사용해 셰이더로 직접 그려 넣기 위함이다."
+    },
+    {
+      "id": "5c90735d-4693-4f8c-8ceb-83a64427b5de",
+      "question": "큐브맵 6개 면에 대한 Irradiance Map을 한 번의 드로우 콜로 생성하는 방법은?",
+      "answer": "생성한 큐브맵을 렌더 타겟으로 바인딩하고 지오메트리 셰이더에서 정육면체 메시를 생성한다. 출력 구조체에 `SV_RenderTargetArrayIndex`를 두어 각 면을 지정한다."
+    },
+    {
+      "id": "7666dcaa-7176-490b-9d39-ac5de6299628",
+      "question": "`SV_RenderTargetArrayIndex` 시맨틱의 역할은 무엇인가?",
+      "answer": "렌더링할 렌더 타겟 배열의 인덱스, 즉 큐브맵의 어느 면에 그릴지를 지정한다. 이 덕분에 6면을 한 번의 드로우 콜로 처리할 수 있다."
+    },
+    {
+      "id": "fe9d8ebc-a189-46ae-a986-3a6940496701",
+      "question": "이 구현에서 버텍스 셰이더는 무슨 일을 하며, 드로우 콜은 어떻게 호출하는가?",
+      "answer": "실제 메시는 지오메트리 셰이더가 만들므로 버텍스 셰이더는 `SV_VertexID`를 받아 면 인덱스만 그대로 전달한다. 따라서 버텍스/인덱스 버퍼를 바인딩하지 않고 버텍스 수를 6으로 하여 드로우 콜을 호출한다."
+    },
+    {
+      "id": "77f2199a-87aa-4c05-98bd-8c39234e4875",
+      "question": "지오메트리 셰이더가 `[maxvertexcount(4)]`와 `TriangleStream`을 쓰는 이유는?",
+      "answer": "면 하나를 트라이앵글 스트립 4개 버텍스로 출력해 사각형(하나의 큐브 면)을 만들기 때문이다. 미리 정의된 `projectedPos`, `vertices`, `indices` 배열에서 해당 면의 버텍스를 골라 `Append` 후 `RestartStrip`한다."
+    },
+    {
+      "id": "81341227-ba8b-472e-83af-e7903dc6b6f9",
+      "question": "픽셀 셰이더에서 계산할 식을 정리할 때 알베도 $\\sigma$를 제외하는 이유는?",
+      "answer": "$\\sigma$는 표면 고유 값이라 실제 렌더링 시 곱해주면 되기 때문이다. 반면 Lambert BRDF의 $\\frac{1}{\\pi}$는 상수이므로 Irradiance Map 생성 단계에서 함께 계산해 둔다."
+    },
+    {
+      "id": "7ca5d626-573e-483c-9579-f75c6fdfbec6",
+      "question": "반구 적분을 구면 좌표계 적분으로 바꾸면 어떤 형태가 되는가?",
+      "answer": "$\\frac{1}{\\pi}\\int_{\\phi=0}^{2\\pi}\\int_{\\theta=0}^{\\frac{\\pi}{2}} L(\\theta,\\phi)\\cos\\theta \\sin\\theta \\, d\\theta \\, d\\phi$ 가 된다. $\\theta$의 상한이 $\\frac{\\pi}{2}$인 것은 반구 공간이기 때문이다."
+    }
+  ]
+}

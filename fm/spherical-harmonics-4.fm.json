@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "62e1625b-ceb2-4cf8-bf83-7548119939a9",
+      "question": "구면 조화 계수로부터 Irradiance를 복원하는 식은 무엇인가?",
+      "answer": "$E(\\theta,\\phi)=\\sum_{l,m} E_{lm}\\,y_l^m(\\theta,\\phi)$ 이다. 즉 계수와 기저 함수의 선형 조합으로 원래 함수를 근사 복원한다."
+    },
+    {
+      "id": "ee3f2e3c-d708-455f-8682-54735d2cd8a0",
+      "question": "$\\hat{A_l}$은 어떻게 정의되며 왜 도입하는가?",
+      "answer": "$\\hat{A_l}=\\sqrt{\\frac{4\\pi}{2l+1}}A_l$ 로 정의한다. 미리 계산해 둘 수 있는 상수이므로 런타임 계산을 없애기 위해 도입한다."
+    },
+    {
+      "id": "662d126a-47f3-4fdc-ae20-ef02f6b49702",
+      "question": "미리 계산된 $\\hat{A_l}$ 값들은 무엇인가?",
+      "answer": "$\\hat{A_0}=3.1415$, $\\hat{A_1}=2.0943$, $\\hat{A_2}=0.7853$, $\\hat{A_3}=0$, $\\hat{A_4}=-0.1309$, $\\hat{A_5}=0$, $\\hat{A_6}=0.0490$ 이다. 홀수 차수(3, 5)는 0이 된다."
+    },
+    {
+      "id": "62655882-8c9d-4ab3-af4c-117a095b9ef5",
+      "question": "$\\hat{A_l}$ 값의 분포에서 관찰되는 특징과 그로부터 얻는 결론은?",
+      "answer": "$l$이 커질수록 수치가 매우 빠르게 감소한다. 따라서 $l \\le 2$의 낮은 주파수 구면 조화 함수만으로도 Irradiance Map을 충분히 근사할 수 있다."
+    },
+    {
+      "id": "938889f0-500f-41cc-af46-fc4726616a90",
+      "question": "$l \\le 2$로 제한하면 필요한 계수는 몇 개이며 어떻게 구성되는가?",
+      "answer": "27개다. RGB 색상 3개 x SH 계수 9개로 구성된다."
+    },
+    {
+      "id": "e32a3500-fac8-42b0-938f-1944eddeacfa",
+      "question": "셰이더 함수 `ShFunctionL2(float3 v, out float Y[9])`는 무엇을 계산하는가?",
+      "answer": "방향 벡터 `v`에 대해 $l \\le 2$의 구면 조화 함수 값 9개를 채운다. `Y[0]=0.282095`, `Y[1..3]=0.488603 * v.y/v.z/v.x`, `Y[4]=1.092548*v.x*v.y`, `Y[6]=0.315392*(3*v.z*v.z-1)`, `Y[8]=0.546274*(v.x*v.x-v.y*v.y)` 등이다."
+    },
+    {
+      "id": "87e0b41d-d2f4-4672-878b-46c90b4da596",
+      "question": "$L_{lm}$을 리만합으로 바꾸면 어떤 계산식이 되는가?",
+      "answer": "$\\frac{1}{\\pi}\\cdot\\frac{2\\pi}{n_1}\\cdot\\frac{\\pi}{n_2}$ 를 정리하여 $\\frac{2\\pi}{n_1 n_2}\\sum_{\\phi=0}^{n_1}\\sum_{\\theta=0}^{n_2} L(\\theta,\\phi) y_l^m(\\theta,\\phi)\\sin\\theta$ 가 된다. 컴퓨트 셰이더가 이 식을 계산한다."
+    },
+    {
+      "id": "e75a51f1-a308-4b93-84c7-ac9165504d39",
+      "question": "$L_{lm}$을 구하는 컴퓨트 셰이더의 스레드 그룹 구성과 작업 분배 방식은?",
+      "answer": "`[numthreads(16, 16, 1)]`로 16x16 스레드 그룹을 사용한다. 각 스레드는 `GTid.x * SampleDelta`부터 `DeltaPhi`(= SampleDelta * 16) 간격으로 $\\phi$를, 마찬가지로 $\\theta$를 훑어 샘플을 분담한다."
+    },
+    {
+      "id": "186a76d1-4ea6-4f88-a929-ab8d1bf71336",
+      "question": "컴퓨트 셰이더에서 `groupshared` 변수는 무엇을 위해 쓰이는가?",
+      "answer": "`SharedCoeffs[256][9]`에 각 스레드가 계산한 9개 계수를 저장하고, `TotalSample`에 전체 샘플 수를 모으기 위해 쓴다. 이후 `GI == 0`인 스레드가 모두 합산한다."
+    },
+    {
+      "id": "608d436b-3fa8-49bd-b47a-1861336f90d3",
+      "question": "컴퓨트 셰이더에서 `InterlockedAdd`와 `GroupMemoryBarrierWithGroupSync`의 역할은?",
+      "answer": "`InterlockedAdd(TotalSample, numSample)`는 여러 스레드의 샘플 수를 경쟁 없이 누적한다. `GroupMemoryBarrierWithGroupSync`는 groupshared 쓰기가 모두 끝난 뒤 합산이 시작되도록 동기화한다."
+    },
+    {
+      "id": "ff4561b3-7708-42c5-83af-fd0c7acc9283",
+      "question": "컴퓨트 셰이더에서 최종 계수에 곱하는 `dOmega`는 어떻게 계산되는가?",
+      "answer": "`float dOmega = 2.f * PI / float(TotalSample)` 이다. 리만합의 $\\frac{2\\pi}{n_1 n_2}$ 계수에 해당하며, 합산된 계수에 곱해 `Coeffs[i]`에 기록한다."
+    },
+    {
+      "id": "cda350af-0d23-4f8f-9194-1c37bf271ed4",
+      "question": "SH 계수를 사용하는 `ImageBasedLight` 함수는 계수를 어떻게 저장/추출하는가?",
+      "answer": "27개 float(9개 float3)을 `IrradianceMapSH[0..6]`의 float4 배열에 촘촘히 패킹해 두고, 각 성분을 꺼내 `l00`, `l1_1`, `l10`, `l11`, `l2_2`, `l2_1`, `l20`, `l21`, `l22`로 재구성한다."
+    },
+    {
+      "id": "8c57bb7d-179d-4ead-bd7a-5deb3cb137d5",
+      "question": "최적화된 Irradiance 렌더링 식 $E(n)$은 무엇인가?",
+      "answer": "$E(n)=c_1L_{22}(x^2-y^2)+c_3L_{20}z^2+c_4L_{00}-c_5L_{20}+2c_1(L_{2-2}xy+L_{21}xz+L_{2-1}yz)+2c_2(L_{11}x+L_{1-1}y+L_{10}z)$ 이다. 레퍼런스 3번 논문의 3.2절에서 소개된 식이다."
+    },
+    {
+      "id": "4abab6f0-037a-4259-8e94-fda1de5e43ed",
+      "question": "최적화된 Irradiance 렌더링 식의 상수 $c_1$ ~ $c_5$ 값은?",
+      "answer": "$c_1=0.429043$, $c_2=0.511664$, $c_3=0.743125$, $c_4=0.886227$, $c_5=0.247708$ 이다. 셰이더에서 `static const float`로 하드코딩된다."
+    },
+    {
+      "id": "f65d0db9-b4e1-44da-8bfb-ec855f45812b",
+      "question": "구면 조화 함수 사용/미사용 Irradiance Map의 최종 결과 비교는 어떠했는가?",
+      "answer": "정면, 위, 아래 여러 시점에서 렌더링한 결과가 거의 동일했다. 즉 108Byte만으로 24KB 큐브맵과 사실상 같은 품질을 얻었다."
+    },
+    {
+      "id": "a4518e12-aa94-4368-9faf-3c869251051c",
+      "question": "이 글에서 제시하는 주요 참고 자료는 무엇인가?",
+      "answer": "LearnOpenGL의 Diffuse irradiance, Green의 \"Spherical Harmonic Lighting: The Gritty Details\", Stanford의 \"An Efficient Representation for Irradiance Environment Maps\", Ramamoorthi의 invlamb 논문 등이다. 전체 구현 코드는 GitHub의 xtozero/SSR 저장소 `irradiance_map` 브랜치에 있다."
+    }
+  ]
+}
