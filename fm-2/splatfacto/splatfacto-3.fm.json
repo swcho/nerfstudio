@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "ec8a7e80-e33e-4668-9577-4c39650b64d2",
+      "question": "학습 중 Splatfacto의 get_outputs에서 카메라에 적용되는 전처리는?",
+      "answer": "학습 시에는 카메라가 한 번에 1개여야 하며(assert), `camera_optimizer.apply_to_camera`로 최적화된 c2w를 얻는다. 평가 시에는 카메라의 원래 c2w를 그대로 쓴다."
+    },
+    {
+      "id": "65a8a268-85a8-4bfc-b6ce-b4b2a6edb882",
+      "question": "Splatfacto의 crop_box 기능은 어떻게 동작하는가?",
+      "answer": "평가/렌더링 시(학습 중 아님) `crop_box`(OrientedBox)가 설정되어 있으면 박스 안에 있는 가우시안만 골라 렌더링한다. 박스 안에 가우시안이 하나도 없으면 배경색으로 채운 빈 출력을 반환한다."
+    },
+    {
+      "id": "09f3923a-1be4-4c73-8888-40319626f4c8",
+      "question": "get_outputs에서 rasterization의 render_mode는 어떻게 결정되는가?",
+      "answer": "평가 중이거나 `output_depth_during_training=True`면 \"RGB+ED\"(RGB + expected depth), 그 외 학습 중에는 \"RGB\"다. 기본 설정에서는 학습 중 depth를 출력하지 않아 속도를 아낀다."
+    },
+    {
+      "id": "6e204b3f-a9d6-4b5d-9fce-df72d07ece8a",
+      "question": "rasterization 호출 시 absgrad 인자는 어떻게 설정되는가?",
+      "answer": "DefaultStrategy를 쓸 때는 전략의 absgrad 설정(config.use_absgrad, 기본 True)을 따르고, MCMCStrategy일 때는 False다. MCMC는 gradient 기반 densify를 하지 않으므로 absgrad가 필요 없다."
+    },
+    {
+      "id": "c0240027-1c75-4fbb-9ea7-bcc388b152b3",
+      "question": "렌더링 결과에서 최종 RGB는 어떻게 합성되는가?",
+      "answer": "`rgb = render + (1 - alpha) * background`로 알파 합성한 뒤 [0, 1]로 clamp한다. 즉 가우시안이 커버하지 못한(alpha가 낮은) 영역은 배경색으로 채워진다."
+    },
+    {
+      "id": "97e4401f-acbe-4077-a422-5c4459bfa128",
+      "question": "depth 출력에서 alpha가 0인 픽셀은 어떻게 처리되는가?",
+      "answer": "`torch.where(alpha > 0, depth, depth.detach().max())`로, 가우시안이 전혀 없는 픽셀에는 해당 이미지 depth의 최대값을 채운다. detach로 이 채움값에는 gradient가 흐르지 않는다."
+    },
+    {
+      "id": "4342dd89-d4a9-4acc-a4d6-1ceeb9c16782",
+      "question": "학습 중 bilateral grid는 어느 시점에 어떻게 적용되는가?",
+      "answer": "래스터라이즈된 RGB에 대해, 카메라 metadata의 `cam_idx`로 해당 이미지의 grid를 골라 화면 전체 xy 격자 좌표와 함께 slice 연산으로 색 변환을 적용한다. 학습 중에만 적용된다(평가 시에는 color_correct로 별도 처리)."
+    },
+    {
+      "id": "4c4e0348-90df-4ffb-8207-00e63d78806f",
+      "question": "`get_gt_img`가 하는 두 가지 처리는?",
+      "answer": "uint8 이미지를 255로 나눠 float [0,1]로 변환하고, 현재 스텝의 다운스케일 계수에 맞춰 GT 이미지도 동일하게 다운스케일한다. 렌더링 해상도와 GT 해상도를 일치시키기 위해서다."
+    },
+    {
+      "id": "1b94afc8-06c7-4ca0-8d1f-8078a8658585",
+      "question": "`composite_with_background`는 언제 필요한가?",
+      "answer": "GT 이미지에 알파 채널(RGBA, 4채널)이 있을 때, `alpha * rgb + (1 - alpha) * background`로 렌더링에 쓰인 배경색과 합성한다. 투명 배경 이미지를 렌더링 출력과 공정하게 비교하기 위해서다."
+    },
+    {
+      "id": "d56eb3b7-4e7a-477f-8f8b-e53d68ab172d",
+      "question": "학습 loss 계산 시 mask가 있으면 어떻게 처리되는가?",
+      "answer": "mask를 현재 해상도로 다운스케일한 뒤 GT와 렌더링 이미지 모두에 곱해 마스크 밖 영역을 검게 만든다. 코드 주석은 이 방식이 SSIM loss에는 다소 부정확(sketchy)하다고 언급한다."
+    },
+    {
+      "id": "21693c93-e9df-4f16-8c1f-1c9be825cb38",
+      "question": "MCMC 전략 사용 시 추가되는 loss 항 두 가지는?",
+      "answer": "`mcmc_opacity_reg * mean(|sigmoid(opacities)|)`와 `mcmc_scale_reg * mean(|exp(scales)|)`다. 불투명도와 스케일을 작게 유지하도록 유도해, 고정된 가우시안 예산(cap_max) 안에서 효율적인 표현을 학습하게 한다."
+    },
+    {
+      "id": "6f4316a6-eec1-4c68-9987-c1a253c64161",
+      "question": "bilateral grid 사용 시 추가되는 loss는?",
+      "answer": "`10 * total_variation_loss(grids)`의 TV(total variation) loss다. bilateral grid가 공간적으로 매끄러운 색 변환을 학습하도록 정규화한다."
+    },
+    {
+      "id": "1bde43e9-07b4-417c-a175-27f23a01d837",
+      "question": "Splatfacto가 학습 중 기록하는 메트릭에는 무엇이 있는가?",
+      "answer": "get_metrics_dict에서 psnr과 gaussian_count(현재 가우시안 수)를 기록하고, `color_corrected_metrics=True`면 cc_psnr도 추가한다. 평가 시(get_image_metrics_and_images)에는 psnr, ssim, lpips(및 cc_ 변형)를 계산한다."
+    },
+    {
+      "id": "3b9c42f8-9bbb-4a47-b964-ed4605d4fc7b",
+      "question": "`get_outputs_for_camera`가 base Model과 다른 점은?",
+      "answer": "레이 번들(raybundle)을 생성하는 대신 카메라 자체를 받아 get_outputs를 직접 호출한다. 가우시안 스플래팅은 레이 마칭이 아니라 카메라 단위 래스터라이제이션이기 때문이며, `@torch.no_grad()`로 감싸져 있고 obb_box로 crop도 지원한다."
+    },
+    {
+      "id": "dfd8232d-4e73-443d-9fad-6eb70b89b9a7",
+      "question": "splatfacto, splatfacto-big, splatfacto-mcmc 세 등록 메서드의 config 차이는?",
+      "answer": "셋 다 같은 SplatfactoModel을 쓴다. splatfacto-big은 `cull_alpha_thresh=0.005`, `densify_grad_thresh=0.0005`로 가우시안을 더 많이 유지해 고품질을 노리고, splatfacto-mcmc는 `strategy=\"mcmc\"`, `cull_alpha_thresh=0.005`, `stop_split_at=25000`을 쓴다."
+    },
+    {
+      "id": "d8bd5a28-ff41-4d9e-803e-578707837358",
+      "question": "DefaultStrategy 생성 시 `pause_refine_after_reset`은 어떻게 설정되며 왜 필요한가?",
+      "answer": "`num_train_data + refine_every`로 설정된다. opacity reset 직후에는 모든 가우시안이 투명해져 gradient 통계가 무의미하므로, 모든 학습 이미지를 한 번씩 다시 볼 때까지 refinement를 일시 중지한다."
+    },
+    {
+      "id": "98f2de7d-eea2-453f-b236-c8067af39d61",
+      "question": "학습 시 rasterization 직후 호출되는 전략 훅은 무엇인가?",
+      "answer": "`strategy.step_pre_backward`다. backward 전에 rasterization이 반환한 `info`(화면 공간 gradient 추적용 정보 등)를 전략 상태에 연결해, backward 후 densification 판단에 쓸 통계를 수집할 수 있게 한다."
+    },
+    {
+      "id": "d1ad08d6-231e-47d6-8930-caeefc8cc903",
+      "question": "Splatfacto에서 gsplat의 rasterization 함수가 받는 주요 입력은?",
+      "answer": "가우시안 파라미터(means, quats, exp(scales), sigmoid(opacities), SH colors)와 카메라 정보(viewmats, Ks, width, height), 그리고 렌더 옵션(render_mode, sh_degree, absgrad, rasterize_mode 등)이다. 반환값은 render 이미지, alpha, info 세 가지다."
+    },
+    {
+      "id": "0cf6b1eb-5581-495e-b9e6-4e5c8b0e3795",
+      "question": "Splatfacto 평가 메트릭 계산 시 이미지 텐서 shape은 어떻게 바뀌는가?",
+      "answer": "렌더링 출력 [H, W, C]를 `torch.moveaxis(img, -1, 0)[None, ...]`로 [1, C, H, W]로 변환한다. torchmetrics의 PSNR/SSIM/LPIPS가 배치-채널 우선 형식을 요구하기 때문이다."
+    }
+  ]
+}

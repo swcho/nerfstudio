@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "eba31026-26c7-4bf7-93ab-74241af078ef",
+      "question": "nerfstudio의 Splatfacto 모델은 무엇인가?",
+      "answer": "nerfstudio가 구현한 3D Gaussian Splatting 모델로, 원조 3DGS 이후의 여러 최신 기법(absgrad, MCMC 전략, antialiased 래스터라이즈, bilateral grid 등)을 하나로 통합한 구현이다. 실제 래스터라이제이션은 gsplat 라이브러리에 위임한다."
+    },
+    {
+      "id": "5c172774-7730-4be5-8d94-65f29974d5d6",
+      "question": "splatfacto.py의 `resize_image` 함수는 이미지를 어떻게 다운스케일하는가?",
+      "answer": "OpenCV의 'area' 보간과 동일한 방식으로, $1/(d \\times d)$ 값을 갖는 $d \\times d$ 균일 가중치 커널을 stride $d$의 `conv2d`로 적용해 [H, W, C] 이미지를 [H//d, W//d, C]로 줄인다. 다운스케일 계수 d는 2, 4, 8 같은 2의 거듭제곱이어야 한다."
+    },
+    {
+      "id": "4e01184a-71c9-41f4-9d00-597136b68380",
+      "question": "`get_viewmat` 함수의 역할은 무엇인가?",
+      "answer": "camera-to-world(c2w) 행렬을 gsplat이 요구하는 world-to-camera(viewmat) 행렬로 변환한다. gsplat 좌표 관례에 맞춰 y·z축을 뒤집은 뒤, 회전의 전치($R^{-1}=R^T$)와 $-R^T T$를 이용한 해석적 역행렬로 계산하며, 속도를 위해 `@torch_compile()`이 적용되어 있다."
+    },
+    {
+      "id": "b481af22-05d5-4cac-98f1-1914f67d07d3",
+      "question": "SplatfactoModelConfig의 `warmup_length`(기본 500)는 무엇을 제어하는가?",
+      "answer": "학습 초기에 refinement(densify/cull)를 끄는 스텝 수다. gsplat 전략의 `refine_start_iter`로 전달되어, 이 스텝 이전에는 가우시안 분할·복제·컬링이 일어나지 않는다."
+    },
+    {
+      "id": "ab8feee1-9e7d-498d-a474-15344a62831d",
+      "question": "SplatfactoModelConfig의 `refine_every`(기본 100)는 무엇인가?",
+      "answer": "가우시안을 컬링하고 densify하는 주기(스텝 단위)다. 100스텝마다 한 번씩 refinement가 수행된다."
+    },
+    {
+      "id": "309c7309-583f-45ea-9355-c98ea141f9b9",
+      "question": "Splatfacto의 coarse-to-fine 해상도 스케줄은 어떻게 동작하는가?",
+      "answer": "학습 시작 시 해상도를 $1/2^d$ ($d$ = `num_downscales`, 기본 2)로 낮추고, `resolution_schedule`(기본 3000) 스텝마다 해상도를 2배로 올린다. 다운스케일 계수는 `2^{\\max(num\\_downscales - step // resolution\\_schedule, 0)}`으로 계산되며 평가 시에는 항상 1이다."
+    },
+    {
+      "id": "1be2c1ce-c127-4a92-afcc-b953e52ca3f5",
+      "question": "SplatfactoModelConfig의 `background_color` 옵션과 기본값은?",
+      "answer": "\"random\", \"black\", \"white\" 중 선택하며 기본은 \"random\"이다. random일 때 학습 중에는 매 스텝 무작위 배경색을 쓰고(배경에 가우시안이 과적합되는 것 방지), 렌더링/평가 시에는 Viser 뷰어의 기본 배경색 (0.1490, 0.1647, 0.2157)을 쓴다."
+    },
+    {
+      "id": "6517662b-17e9-4ddf-8119-27a03aedd338",
+      "question": "`cull_alpha_thresh`(기본 0.1)의 역할과 품질 관련 팁은?",
+      "answer": "불투명도(opacity)가 이 값보다 낮은 가우시안을 컬링하는 임계값으로, gsplat DefaultStrategy의 `prune_opa`로 전달된다. 0.005처럼 낮게 설정하면 가우시안이 덜 제거되어 품질이 올라가며, splatfacto-big과 splatfacto-mcmc가 이 값을 사용한다."
+    },
+    {
+      "id": "dbdcef31-8b4d-405e-b61a-e3ec58abf88d",
+      "question": "`cull_scale_thresh`와 `cull_screen_size`는 각각 어떤 가우시안을 컬링하는가?",
+      "answer": "`cull_scale_thresh`(기본 0.5)는 월드 공간 스케일이 임계값을 넘는 거대 가우시안을(prune_scale3d), `cull_screen_size`(기본 0.15)는 화면 공간에서 화면의 15%를 넘게 차지하는 가우시안을(prune_scale2d) 컬링한다."
+    },
+    {
+      "id": "0fd9f646-eeec-4156-9e16-13787434ceb7",
+      "question": "`reset_alpha_every`(기본 30)는 무엇을 하는가?",
+      "answer": "refinement 30회마다(즉 `reset_alpha_every * refine_every` = 3000스텝마다) 모든 가우시안의 불투명도(alpha)를 리셋한다. 원조 3DGS의 opacity reset 기법으로, 불필요하게 불투명해진 가우시안을 정리하고 floaters를 줄인다."
+    },
+    {
+      "id": "f013c2ca-963d-4809-b4d8-5f1d86361c7d",
+      "question": "`densify_grad_thresh`(기본 0.0008)는 무엇을 제어하는가?",
+      "answer": "positional gradient의 norm이 이 임계값을 넘는 가우시안을 densify(분할 또는 복제) 대상으로 삼는다. gsplat DefaultStrategy의 `grow_grad2d`로 전달되며, 낮출수록 densify가 공격적이 된다(splatfacto-big은 0.0005 사용)."
+    },
+    {
+      "id": "e54219fe-e518-46c8-82cd-7480f0fb4c32",
+      "question": "Splatfacto의 `use_absgrad` 옵션은 무엇인가?",
+      "answer": "densify 판단에 일반 gradient 대신 절대값 gradient(absgrad, AbsGS 논문 기법)를 쓰는 옵션으로 기본값은 True다. 픽셀별 gradient가 부호 상쇄로 사라지는 문제를 막아 densify가 필요한 가우시안을 더 잘 찾아낸다."
+    },
+    {
+      "id": "e2249802-5d8a-4765-8cd8-4fd739179277",
+      "question": "densify 시 가우시안을 복제(duplicate)할지 분할(split)할지는 어떻게 결정되는가?",
+      "answer": "`densify_size_thresh`(기본 0.01)보다 작은 가우시안은 복제되고, 그보다 크면 분할된다. 분할 시에는 `n_split_samples`(기본 2)개의 샘플로 나뉜다."
+    },
+    {
+      "id": "72f0e4c7-0bc6-4406-a3d5-cecadbb9e88a",
+      "question": "`split_screen_size`(기본 0.05)와 `stop_screen_size_at`(기본 4000)의 역할은?",
+      "answer": "화면 공간에서 화면의 5%보다 크게 보이는 가우시안을 분할 대상으로 삼고(grow_scale2d), 화면 크기 기준의 컬링/분할은 4000스텝에서 중단한다(refine_scale2d_stop_iter)."
+    },
+    {
+      "id": "4fe2bf96-1669-4fda-905f-72c8451163ab",
+      "question": "`stop_split_at`(기본 15000)은 무엇인가?",
+      "answer": "가우시안 분할(densification)을 중단하는 스텝으로, gsplat 전략의 `refine_stop_iter`로 전달된다. 이후에는 가우시안 수가 고정된 채 파라미터만 최적화된다. splatfacto-mcmc는 25000으로 늘려 사용한다."
+    },
+    {
+      "id": "2ac58eaa-0acf-4c18-8a14-3b50f304cc03",
+      "question": "Splatfacto에서 `random_init` 관련 옵션 3가지는 무엇인가?",
+      "answer": "`random_init`(기본 False)이 True면 SfM 포인트 대신 위치를 균일 무작위로 초기화하고, `num_random`(기본 50000)개의 가우시안을 한 변이 `random_scale`(기본 10.0)인 정육면체 안에 생성한다."
+    },
+    {
+      "id": "490940f7-6e97-4cd6-aa8b-128b2ee81377",
+      "question": "Splatfacto의 main loss는 어떻게 구성되는가?",
+      "answer": "$(1-\\lambda)\\,L_1 + \\lambda\\,(1-\\mathrm{SSIM})$ 형태로, `ssim_lambda`(기본 0.2)가 SSIM 항의 가중치다. 즉 L1 loss 80%, SSIM loss 20%의 가중 합이다."
+    },
+    {
+      "id": "07d38e31-33b2-4699-af24-bf9d29d63306",
+      "question": "`sh_degree`(기본 3)와 `sh_degree_interval`(기본 1000)은 SH 학습을 어떻게 제어하는가?",
+      "answer": "`sh_degree`는 사용할 spherical harmonics의 최대 차수이고, `sh_degree_interval`은 SH 차수를 하나씩 추가로 켜는 주기다. 실제 사용 차수는 `min(step // sh_degree_interval, sh_degree)`로, 0차부터 시작해 1000스텝마다 한 차수씩 늘어난다."
+    },
+    {
+      "id": "4dbbac88-8b8b-4776-9256-dd7e13f8a05a",
+      "question": "`sh_degree=0`으로 설정하면 색상 표현이 어떻게 달라지는가?",
+      "answer": "SH 대신 색상만 최적화하는 모드가 되어 `features_dc`에 sigmoid 활성화를 적용해 RGB를 얻는다. 초기화 시에도 RGB2SH 대신 `torch.logit(색상)`으로 저장하고, 렌더링 시 `sh_degree=None`으로 rasterization을 호출한다."
+    }
+  ]
+}

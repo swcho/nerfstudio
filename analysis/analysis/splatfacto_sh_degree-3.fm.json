@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "55c6eab0-59dc-4180-aa16-92524d0300b1",
+      "question": "nerfstudio의 `components_from_spherical_harmonics` 유틸은 실제로 어디에서 쓰이는가?",
+      "answer": "splatfacto가 아니라 nerfstudio의 NeRF 계열 모델(방향 인코딩)이 쓴다. 이름이 같아도 gsplat과 같은 규약이 아니라는 점에 주의해야 한다."
+    },
+    {
+      "id": "a0ef1f07-bc42-456d-a74b-a6f458e69f82",
+      "question": "SH 부호 규약 차이가 실무적으로 문제가 되는 상황은?",
+      "answer": "계수를 코드베이스 간에 옮길 때다. PLY export/import, 다른 뷰어 이식, 논문 재현 시 $l\\ge1$ 계수의 부호가 뒤집히면 하이라이트가 반대편에 생긴다. 색이 '대충 맞는데 미묘하게 이상'하면 이것을 의심해야 한다."
+    },
+    {
+      "id": "9ac1c6c5-2e36-4c02-831b-beb88ba91ddd",
+      "question": "$l\\ge1$ 계수를 1e3으로 망가뜨려도 `spherical_harmonics(0, ...)` 결과가 동일한 이유와 그 함의는?",
+      "answer": "$L=0$ 평가는 앞쪽 1개 계수만 사용하므로 뒤쪽 계수가 계산 그래프에 아예 들어가지 않는다. 이것이 step<1000에서 `features_rest.grad == 0`인 이유다."
+    },
+    {
+      "id": "3cb5c732-2e52-491b-8601-12b74674a20c",
+      "question": "`sh_degree_to_use`는 어떻게 계산되는가?",
+      "answer": "$\\min(\\lfloor t / \\texttt{sh\\_degree\\_interval} \\rfloor, \\texttt{sh\\_degree})$, 기본값으로는 $\\min(\\lfloor t/1000 \\rfloor, 3)$이다. 1000스텝마다 밴드를 하나씩 열어 3000스텝 이후 16개 계수가 전부 활성화된다."
+    },
+    {
+      "id": "022d952d-c85f-4c20-b599-8069b1b89556",
+      "question": "splatfacto가 SH 밴드를 한 번에 다 풀지 않고 `sh_degree_interval`로 점진적으로 여는 이유는?",
+      "answer": "고차 SH는 표현력이 커서 기하(위치·크기·회전)가 아직 엉망인 초반에 풀면 잘못된 기하를 색으로 덮어버리기 때문이다. 특정 시점에서만 맞는 색을 학습해 floater가 굳어진다. 저주파부터 맞추고 고주파를 나중에 여는 coarse-to-fine 전략이다."
+    },
+    {
+      "id": "cdce3699-db4b-4514-83df-4c52c5127cb0",
+      "question": "splatfacto 학습 초반 3000스텝 동안 `features_rest`에는 어떤 일이 일어나는가?",
+      "answer": "전체가 학습되지 않거나 일부만 학습된다. step<1000에서는 grad가 0이어서 Adam이 밟아도 값이 변하지 않고 모멘트도 0이다. 1000–1999는 `[:, :3]`(3/15), 2000–2999는 `[:, :8]`(8/15), 3000 이후 전체 15개가 학습된다."
+    },
+    {
+      "id": "7bb2d7d1-e50b-4a42-b1b3-b17e1e122979",
+      "question": "step 구간별 `sh_degree_to_use`와 활성 계수 개수는?",
+      "answer": "0–999: L=0, 1개 / 1000–1999: L=1, 4개 / 2000–2999: L=2, 9개 / 3000–29999: L=3, 16개."
+    },
+    {
+      "id": "b10415b1-c42d-4593-b565-b152575fe8ae",
+      "question": "학습된 splatfacto 체크포인트에서 SH 계수를 꺼내 밴드별로 비교하면 어떤 경향이 있는가?",
+      "answer": "$l=0$(`features_dc`)의 RMS가 지배적이고 $l=1,2,3$은 그보다 훨씬 작다. 즉 저주파가 지배적이며 대부분의 가우시안은 시점 의존성이 약하다."
+    },
+    {
+      "id": "c360a271-8040-41ab-8251-67df6f89fdf8",
+      "question": "체크포인트의 SH 계수를 `components_from_spherical_harmonics`로 평가할 때 반드시 해야 하는 처리는?",
+      "answer": "$(-1)^m$ (Condon–Shortley) 보정을 곱해야 한다. 그렇지 않으면 gsplat이 렌더한 것과 다른 색이 나온다."
+    },
+    {
+      "id": "3d7392e7-1ac4-4e55-8d7c-59adc5b39876",
+      "question": "시점 의존성이 '눈에 보이는' 가우시안을 고를 때 `features_rest` 에너지가 큰 것만 고르면 어떤 문제가 있는가?",
+      "answer": "흰색으로 포화된 가우시안이 뽑혀 클램프 후 실제 색 변화가 0이 된다. 그래서 rest 에너지 상위 후보 중 클램프 후 방향별 색 변동(std)이 실제로 큰 것을 고른다."
+    },
+    {
+      "id": "048b8096-4746-4277-ae64-da47fb30e060",
+      "question": "학습된 가우시안 하나의 '방향별 색 범위'는 무엇을 의미하는가?",
+      "answer": "$L=3$ 전체 계수로 여러 방향에서 평가한 RGB의 최소·최대 폭으로, 시점에 따라 색이 얼마나 변하는가를 나타낸다. $l=0$만 쓴 색은 시점 무관 성분이다."
+    },
+    {
+      "id": "a202cae4-923e-4552-b10a-c68022347f54",
+      "question": "splatfacto의 SH 파이프라인에서 `features_rest`의 grad가 step 0에 0으로 나오는 이유를 한 문장으로 정리하면?",
+      "answer": "step<1000이면 `sh_degree_to_use=0`이어서 gsplat이 앞쪽 1개 계수만 사용하므로, 고차 계수가 계산 그래프에 아예 들어가지 않아 gradient가 생기지 않는다."
+    },
+    {
+      "id": "300f7690-5640-46f8-85f5-424b1a327d21",
+      "question": "이 분석 스크립트에서 CPU만으로 실행 가능한 단계와 CUDA가 필요한 단계는?",
+      "answer": "①~④(SH 개념, basis 시각화, RGB2SH, 근사 실험)는 CPU만으로 돈다. ⑤(gsplat 커널 대조)는 gsplat CUDA 커널이 필요하고, ⑦은 30k 스텝 완주한 체크포인트가 있을 때만 실행된다."
+    },
+    {
+      "id": "331c34dc-9ca6-4f22-9405-539f2f8cd9df",
+      "question": "구면 함수 $f(\\mathbf d)$ 를 SH로 전개하는 것을 1차원 함수의 어떤 개념에 비유할 수 있는가?",
+      "answer": "1차원 주기함수를 $\\sin/\\cos$ 급수로 펼치는 푸리에 급수에 비유할 수 있다. SH는 '구면 위의 푸리에 급수'로, 차수 $l$이 주파수에 해당한다."
+    }
+  ]
+}

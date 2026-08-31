@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "a18252d4-8c6a-4142-a8f4-a829e8ba52d1",
+      "question": "`RGB2SH`로 빨강 [1, 0, 0], 중간회색 [0.5, 0.5, 0.5], 검정 [0, 0, 0]을 변환하면 각각 어떤 특징이 있는가?",
+      "answer": "중간회색 0.5는 sh_0 = 0이 된다. 빨강은 R 채널이 $0.5/C_0 \\approx 1.77$, G/B는 $-1.77$이 되고 검정은 세 채널 모두 $-1.77$이 된다. `SH2RGB`로 되돌리면 원래 값으로 정확히 왕복한다."
+    },
+    {
+      "id": "0df450cd-18a1-4502-a8f6-41060cf768dc",
+      "question": "splatfacto에서 `sh_degree=0`으로 설정하면 색은 어떻게 처리되는가?",
+      "answer": "SH를 아예 쓰지 않고 sigmoid 경로를 탄다. `features_dc`를 SH 계수가 아닌 sigmoid의 logit으로 해석하므로 방향 의존성이 없는 램버시안 색이 된다."
+    },
+    {
+      "id": "8f0e802a-64d7-4334-90d1-06934c72aaa6",
+      "question": "SH 차수를 올리면 어떤 이점이 있는지 확인하는 실험은 어떤 목표 함수를 썼는가?",
+      "answer": "시점 의존 하이라이트를 흉내낸 $f(\\mathbf d) = \\max(0, \\mathbf d\\cdot\\mathbf r)^p$ (Phong 모델의 반사 방향 $\\mathbf r$ 주변 좁은 로브, $p=8$)를 $L=0\\dots4$로 최소제곱 근사했다. 이것이 가우시안 하나가 색의 방향 의존성을 SH로 저장하는 상황과 같다."
+    },
+    {
+      "id": "9f039852-e758-4a26-a31e-133157226244",
+      "question": "구면 위 균등 샘플을 만드는 데 쓴 방법은?",
+      "answer": "피보나치 격자(Fibonacci sphere)다. $z = 1 - 2(i+0.5)/n$, 방위각 $a = \\pi(1+\\sqrt5)\\,i$로 정해 $n$개 점을 구면에 거의 균등하게 배치한다."
+    },
+    {
+      "id": "0b26a717-b253-45dc-8944-8c536adccfd1",
+      "question": "SH 근사 실험에서 $L=0$, $L=1$, 그리고 $L$ 이 커질 때 각각 어떤 관찰이 있었는가?",
+      "answer": "$L=0$은 상수여서 방향 의존성을 전혀 표현하지 못한다(램버시안). $L=1$부터 '한쪽이 밝다' 정도가 생기고, $L$을 올릴수록 하이라이트 로브가 좁아지며 RMSE가 줄어든다."
+    },
+    {
+      "id": "ead259f3-1a4c-4d73-b25a-9273ab8cf6e5",
+      "question": "SH 근사 실험에서 최소제곱으로 구한 계수는 실제 학습에서 무엇에 대응하는가?",
+      "answer": "`torch.linalg.lstsq(B, target)`으로 구한 계수가 곧 splatfacto가 gradient descent로 찾아가는 SH 계수($c_{lm}$)에 대응한다."
+    },
+    {
+      "id": "4956868f-40df-4dc3-8e55-184422db728b",
+      "question": "3DGS가 거울이나 유리 같은 표면에 약한 근본 원인은?",
+      "answer": "splatfacto 기본 $L=3$에서도 좁은 하이라이트가 완벽히 표현되지 않으며, 거울 반사 같은 극단적 고주파 방향 함수는 SH로 표현할 수 없기 때문이다."
+    },
+    {
+      "id": "86ada6b9-e323-408a-aed6-d9dbe2e7008b",
+      "question": "splatfacto forward에서 `features_dc`와 `features_rest`는 어떻게 합쳐지는가?",
+      "answer": "`colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)`으로 [N,1,3]과 [N,15,3]을 이어 [N,16,3]을 만든 뒤 `rasterization(..., colors=colors_crop, sh_degree=sh_degree_to_use)`에 넘긴다."
+    },
+    {
+      "id": "9f23be04-a3d0-4432-b9bc-fb94f67e9868",
+      "question": "gsplat 래스터라이저 안에서 SH 색 계산은 어떤 세 단계로 이뤄지는가?",
+      "answer": "① 가우시안마다 방향 $\\mathbf d$ = (가우시안 중심 − 카메라 위치) 계산, ② `spherical_harmonics(sh_degree_to_use, dirs, shs)`로 앞쪽 $(L+1)^2$개 계수만 사용해 평가, ③ `colors = clamp_min(결과 + 0.5, 0)`으로 0.5 오프셋 후 클램프."
+    },
+    {
+      "id": "6dbbecb1-a455-4901-a1ac-8af49e22cfa3",
+      "question": "nerfstudio의 `components_from_spherical_harmonics`로 손계산한 SH 값과 gsplat CUDA 커널 결과를 비교하면 어떻게 되는가?",
+      "answer": "$l=0$만 일치하고 $l\\ge1$에서는 전부 불일치한다. 두 코드베이스가 서로 다른 부호 규약(Condon–Shortley phase)을 쓰기 때문이다."
+    },
+    {
+      "id": "e158a393-c1d3-4b71-ac49-dbcc82937c27",
+      "question": "gsplat CUDA 커널의 SH basis 값을 소스 없이 직접 추출하는 방법은?",
+      "answer": "one-hot 프로브를 쓴다. $k$번째 계수만 1이고 나머지가 0이면 $\\sum_j c_j Y_j = Y_k$이므로, 반환값이 곧 basis $Y_k$의 값이 된다. 이를 nerfstudio 것과 나눠 보면 규약 차이가 드러난다."
+    },
+    {
+      "id": "b30a1a3a-20cd-42c7-a69e-d11e9f2b7978",
+      "question": "nerfstudio 유틸과 gsplat의 SH basis는 정확히 어떻게 다른가?",
+      "answer": "$(-1)^m$만큼 다르다. 물리·화학 관례인 Condon–Shortley phase를 nerfstudio 유틸은 빼고, gsplat(및 3DGS 원본 CUDA)은 넣었다. 둘 다 정규직교 실수 basis이므로 어느 쪽도 틀린 것은 아니다."
+    },
+    {
+      "id": "bdc600b7-7a33-4a03-a982-2f26b43f8a08",
+      "question": "Condon–Shortley phase란 무엇인가?",
+      "answer": "물리·화학에서 구면조화함수에 관례적으로 붙이는 부호 인자 $(-1)^m$이다. 이를 포함하느냐 여부에 따라 basis의 부호가 달라지지만 정규직교성은 그대로 유지된다."
+    },
+    {
+      "id": "afc9ed38-8393-43fd-8074-5284251ad359",
+      "question": "SH 평탄화 인덱스 $k = l^2 + (m+l)$ 에서 $(-1)^m = (-1)^k$ 가 성립하는 이유는?",
+      "answer": "$k - m = l^2 + l = l(l+1)$은 항상 짝수이므로 $(-1)^m = (-1)^k$다. 따라서 두 규약의 부호 차이가 인덱스 순서대로 $+,-,+,-,\\dots$로 깔끔하게 번갈아 나타난다."
+    },
+    {
+      "id": "43de8281-8082-4f3e-920f-58e218834c56",
+      "question": "nerfstudio와 gsplat의 SH 부호 규약 차이는 학습에 영향을 주는가?",
+      "answer": "아니다. 계수가 부호를 그냥 흡수하므로 $c_k$ 대신 $-c_k$를 학습할 뿐이다. 더구나 splatfacto는 `components_from_spherical_harmonics`를 호출하지 않고 SH 평가를 전부 gsplat CUDA 안에서 한다."
+    }
+  ]
+}

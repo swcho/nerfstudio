@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "b9e8ebbb-60d4-4408-ba0f-e81577cebb52",
+      "question": "3D Gaussian Splatting에서 가우시안의 색을 구면조화함수(SH)로 표현하는 이유는 무엇인가?",
+      "answer": "가우시안의 색이 보는 방향에 따라 달라져야 하기 때문이다(금속 하이라이트, 나뭇잎 반투과, 물 반사 등). '방향 → 색' 함수의 정의역이 구면 $S^2$이므로, 1차원 주기함수를 푸리에 급수로 펼치듯 구면 위 함수를 SH basis로 펼쳐 몇 개의 계수로 저장한다."
+    },
+    {
+      "id": "e163245a-a1ac-4e8e-b85f-d372e6dd4fc5",
+      "question": "SH 전개식 $f(\\mathbf d) \\approx \\sum_{l=0}^{L}\\sum_{m=-l}^{l} c_{lm} Y_{lm}(\\mathbf d)$ 에서 $\\mathbf d$, $Y_{lm}$, $c_{lm}$ 은 각각 무엇인가?",
+      "answer": "$\\mathbf d$는 카메라에서 가우시안으로 향하는 단위 방향 벡터, $Y_{lm}$은 학습 대상이 아닌 고정된 basis 함수(방향만 넣으면 값이 나오는 상수 함수), $c_{lm}$은 splatfacto가 optimizer로 갱신하는 학습 계수이다."
+    },
+    {
+      "id": "3a7de934-ef5e-442c-a138-7aeb2a18c7fc",
+      "question": "SH의 차수(degree, band) $l$ 은 무엇을 의미하는가?",
+      "answer": "구면 위 함수의 주파수 역할이다. 낮은 $l$은 구면에서 천천히 변하는 저주파 성분, 높은 $l$은 빠르게 변하는 고주파 성분으로, 푸리에 급수의 주파수와 정확히 같은 역할을 한다."
+    },
+    {
+      "id": "4b60fc75-a75a-4a90-ac97-225972d8793c",
+      "question": "최대 차수 $L$ 까지 SH를 쓸 때 계수의 총 개수는 몇 개이며, 왜 그런가?",
+      "answer": "각 차수 $l$마다 $m=-l\\dots l$로 $2l+1$개가 있으므로 $\\sum_{l=0}^{L}(2l+1) = (L+1)^2$개다. nerfstudio의 `num_sh_bases(degree) = (degree+1)**2`가 이것이다."
+    },
+    {
+      "id": "d3490535-2fa3-4b2e-9df2-e902c04c9959",
+      "question": "`components_from_spherical_harmonics(degree, ...)`의 `degree` 인자를 해석할 때 주의할 점은?",
+      "answer": "docstring이 헷갈리게 쓰여 있지만 `degree`는 '차수의 개수'가 아니라 최대 차수 $L$이다. 예를 들어 `degree=3`이면 16개 basis가 나온다."
+    },
+    {
+      "id": "d8dee127-2824-48c2-af39-f4ea307a6f0f",
+      "question": "splatfacto 기본 설정 `sh_degree=3`에서 가우시안 하나당 SH 계수는 몇 개의 실수인가?",
+      "answer": "$(3+1)^2 = 16$개 계수 × RGB 3채널 = 48개 실수다. `features_dc`가 [N, 3], `features_rest`가 [N, 15, 3]으로 나뉘어 저장된다."
+    },
+    {
+      "id": "8fe1d05c-8464-4d7a-9f85-30cea3cc9cd9",
+      "question": "`features_dc`와 `features_rest`는 각각 어떤 SH 밴드를 담는가?",
+      "answer": "`features_dc`[N, 3]는 $l=0$ 계수 1개 × 3채널, `features_rest`[N, 15, 3]는 $l=1,2,3$ 계수 15개 × 3채널이다. `features_rest` 안에서 $l=1$은 인덱스 0:3, $l=2$는 3:8, $l=3$은 8:15에 해당한다."
+    },
+    {
+      "id": "aa8c7cd0-0d1c-4dce-90ec-da172d44dbce",
+      "question": "splatfacto가 SH 계수를 `features_dc`와 `features_rest`로 나눠 저장하는 두 가지 이유는?",
+      "answer": "① $l=0$은 '평균 색'이라 초기화 방식이 다르다(SfM 포인트 색을 주입). ② optimizer 그룹을 분리해 learning rate를 다르게 주기 위해서다(`features_dc` 2.5e-3 vs `features_rest`는 그 1/20)."
+    },
+    {
+      "id": "ea33e619-1e59-4824-ace2-88383360f73b",
+      "question": "$Y_{00}$ 의 값과 그 의미는?",
+      "answer": "$Y_{00} = 0.2820947918 = \\sqrt{1/4\\pi} \\equiv C_0$ 인 상수 함수다. $l=0$ basis는 방향과 무관하므로 가우시안의 '평균 색'을 담당한다."
+    },
+    {
+      "id": "37ee6e8c-387f-4070-af71-dd4ff078a8be",
+      "question": "$l=1$ SH basis는 어떤 형태인가?",
+      "answer": "방향 성분 자체에 비례하는 함수로, 약 $0.4886 \\cdot y,\\ z,\\ x$ 형태다. 이 밴드부터 '한쪽이 밝다' 정도의 방향 의존성이 표현된다."
+    },
+    {
+      "id": "584f1e6d-ab65-4768-b374-add9926dfa5f",
+      "question": "SH basis를 equirectangular 투영으로 시각화하면 차수가 올라갈수록 어떤 변화가 보이는가?",
+      "answer": "가로는 방위각 $\\phi$, 세로는 극각 $\\theta$로 구면을 평면에 펼쳐 그리면, 행(차수 $l$)이 아래로 갈수록 무늬가 잘게 쪼개진다. 이것이 곧 고주파 성분이라는 의미다."
+    },
+    {
+      "id": "fd10cfa4-90b1-4e82-bbb5-fd9d586dc520",
+      "question": "SH basis의 직교성을 격자 수치적분으로 확인할 때 왜 $\\sin\\theta$ 가중이 필요한가?",
+      "answer": "구면의 면적 요소가 $\\sin\\theta\\, d\\theta\\, d\\phi$이기 때문이다. 이 가중을 넣고 내적을 계산하면 대각 성분이 이론값 1, 비대각 성분이 0에 가깝게 나오며 잔차는 격자 이산화 오차다."
+    },
+    {
+      "id": "1450ec58-861f-473f-a04e-84124b0ddf18",
+      "question": "`RGB2SH`와 `SH2RGB` 함수의 수식은?",
+      "answer": "$\\mathrm{sh}_0 = (\\mathrm{rgb} - 0.5)/C_0$, $\\mathrm{rgb} = C_0 \\cdot \\mathrm{sh}_0 + 0.5$, 여기서 $C_0 = 0.2820947918$이다. $Y_{00}=C_0$이므로 $Y_{00}\\cdot\\mathrm{sh}_0 = \\mathrm{rgb}-0.5$가 되도록 나눈 것이다."
+    },
+    {
+      "id": "af5d9ce1-6dee-416c-983d-4f931006bebc",
+      "question": "`RGB2SH`에서 0.5를 빼는 이유는 무엇인가?",
+      "answer": "래스터라이저(gsplat) 쪽 규약 때문이다. gsplat은 SH를 평가한 뒤 항상 0.5를 더하므로(`colors = clamp_min(colors + 0.5, 0)`), SH가 표현하는 것은 색 자체가 아니라 중간 회색 0.5로부터의 편차다."
+    },
+    {
+      "id": "3f719f0b-7987-412a-a385-4e139992340e",
+      "question": "SH 계수가 전부 0인 가우시안은 어떤 색으로 렌더되는가?",
+      "answer": "중간 회색(0.5)으로 렌더된다. 0.5 오프셋 규약 덕분에 계수 0으로 초기화된 가우시안은 회색으로 시작하고, 고차 밴드를 0으로 두면 색에 아무 영향이 없다."
+    }
+  ]
+}

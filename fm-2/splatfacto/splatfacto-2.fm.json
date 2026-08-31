@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "e11308f6-885f-47c7-ad25-42dce61d51e4",
+      "question": "`use_scale_regularization` 옵션은 어떤 논문의 기법이며 무엇을 막는가?",
+      "answer": "PhysGaussian 논문에서 도입된 스케일 정규화로, 길쭉하게 튀는(spikey) 거대 가우시안을 억제한다. 최대/최소 스케일 비율이 `max_gauss_ratio`(기본 10.0)를 넘는 만큼을 페널티로 부과하며, 10스텝마다 0.1 가중치로 적용된다."
+    },
+    {
+      "id": "10e06e13-fe40-469f-b27b-8ceafa5bebd8",
+      "question": "rasterize_mode의 \"classic\"과 \"antialiased\"는 어떻게 다른가?",
+      "answer": "classic은 EWA volume splatting에 [0.3, 0.3] 화면 공간 블러 커널을 쓰는데, 촬영 해상도와 다른 해상도로 작은 가우시안을 렌더링하면 앨리어싱 같은 아티팩트가 생긴다. antialiased 모드는 보정 계수를 계산해 불투명도에 적용함으로써 splat의 총 적분 밀도를 보존해 이 문제를 해결한다(Mip-Splatting 계열 기법)."
+    },
+    {
+      "id": "a908a336-2f14-4a7a-a70f-602da00f9456",
+      "question": "antialiased 모드로 export한 PLY 파일의 호환성 주의점은?",
+      "answer": "antialiased 모드로 export한 PLY는 classic 모드와 호환되지 않는다. classic 모드 전제로 구현된 많은 웹 뷰어는 수정 없이는 antialiased PLY를 제대로 렌더링하지 못한다."
+    },
+    {
+      "id": "4585f5c6-d9ab-4dba-ac8a-535770acbb08",
+      "question": "Splatfacto의 `use_bilateral_grid` 옵션은 어떤 문제를 해결하는가?",
+      "answer": "'Bilateral Guided Radiance Field Processing'(BilaRF) 논문의 기법으로, 이미지별 ISP 처리(노출, 화이트밸런스 등) 차이를 이미지 공간에서 보정한다. 학습 이미지 수만큼의 bilateral grid(`grid_shape` 기본 (16, 16, 8))를 만들어 카메라 인덱스별로 렌더링 결과에 적용한다."
+    },
+    {
+      "id": "573016b7-fc99-41d4-a42e-ee0c0680aa30",
+      "question": "`color_corrected_metrics` 옵션은 무엇을 하는가?",
+      "answer": "True면 렌더링된 이미지에 색 보정(color_correct)을 적용한 뒤 메트릭을 계산해 cc_psnr, cc_ssim, cc_lpips를 추가로 기록한다. bilateral grid처럼 노출 차이를 다루는 설정에서 순수 지오메트리/구조 품질을 평가할 때 유용하다."
+    },
+    {
+      "id": "aaee8a31-a161-48da-983b-0ff7c4794309",
+      "question": "Splatfacto가 지원하는 densification 전략 두 가지는 무엇인가?",
+      "answer": "`strategy=\"default\"`는 원조 3DGS의 split/duplicate/cull 휴리스틱(gsplat DefaultStrategy)이고, `strategy=\"mcmc\"`는 3DGS-MCMC 논문의 MCMC 샘플링 기반 전략(gsplat MCMCStrategy)이다. 그 외 값은 ValueError를 발생시킨다."
+    },
+    {
+      "id": "331b4488-2461-40f3-aedc-4cf720578cdb",
+      "question": "MCMC 전략 관련 config 파라미터 4가지는 무엇인가?",
+      "answer": "`max_gs_num`(기본 1,000,000, 가우시안 총 개수 상한 cap_max), `noise_lr`(기본 5e5, MCMC 노이즈 샘플링 학습률), `mcmc_opacity_reg`(기본 0.01, 불투명도 정규화), `mcmc_scale_reg`(기본 0.01, 스케일 정규화)다."
+    },
+    {
+      "id": "e4170d1f-dd65-4e30-bf66-76da653c3503",
+      "question": "SplatfactoModel의 가우시안 위치(means)는 어떻게 초기화되는가?",
+      "answer": "`seed_points`(SfM 포인트)가 있고 `random_init=False`면 SfM 포인트 위치를 그대로 파라미터로 쓴다. 그렇지 않으면 `(rand - 0.5) * random_scale`로 정육면체 안에 균일 무작위 초기화한다."
+    },
+    {
+      "id": "ac640344-704c-4e90-90a8-4a662ac66836",
+      "question": "가우시안의 초기 스케일(scales)은 어떻게 정해지는가?",
+      "answer": "각 포인트에 대해 k=3 최근접 이웃 거리(`k_nearest_sklearn`)의 평균을 구하고, 그 log 값을 3축에 동일하게 복제해 초기 스케일로 쓴다. 즉 점이 조밀한 곳은 작게, 성긴 곳은 크게 시작한다."
+    },
+    {
+      "id": "846ef321-0934-416c-8ebc-9aacea520121",
+      "question": "가우시안의 초기 회전(quats)과 불투명도(opacities)는 어떻게 초기화되는가?",
+      "answer": "회전은 `random_quat_tensor`로 무작위 쿼터니언으로, 불투명도는 `torch.logit(0.1)`로 초기화한다. 불투명도는 logit 공간에 저장되므로 실제 값은 sigmoid를 거친 0.1이다."
+    },
+    {
+      "id": "f64ae9c3-6fc1-4345-9b74-38d965e032cb",
+      "question": "SfM 포인트 색상은 SH 계수로 어떻게 변환되어 초기화되는가?",
+      "answer": "RGB 색상(0~255)을 255로 나눈 뒤 `RGB2SH`로 0차 SH 계수(features_dc)에 넣고, 나머지 고차 계수(features_rest)는 0으로 초기화한다. SfM 색상이 없으면 features_dc는 무작위, features_rest는 0이다."
+    },
+    {
+      "id": "46715b44-76f3-4d95-80a0-e6a234eef5ca",
+      "question": "SplatfactoModel의 `gauss_params` ParameterDict에 담기는 6가지 파라미터는?",
+      "answer": "means(위치), scales(log 스케일), quats(회전 쿼터니언), features_dc(0차 SH), features_rest(고차 SH), opacities(logit 불투명도)다. 이 6개가 각각 별도의 옵티마이저 파라미터 그룹이 된다."
+    },
+    {
+      "id": "03781966-4723-4b58-afab-609083416d21",
+      "question": "scales와 opacities가 log/logit 공간에 저장되는 이유와 렌더링 시 처리 방법은?",
+      "answer": "제약 없는(unconstrained) 공간에서 최적화하기 위해서다. 렌더링 시 rasterization에 `torch.exp(scales)`와 `torch.sigmoid(opacities)`를 넘겨 각각 양수 스케일과 (0,1) 불투명도로 변환한다. 쿼터니언 정규화는 rasterization 내부에서 처리된다."
+    },
+    {
+      "id": "17080068-ab3a-498c-9ce9-33f2b3321998",
+      "question": "SplatfactoModel의 `colors` 프로퍼티는 무엇을 반환하는가?",
+      "answer": "sh_degree > 0이면 `SH2RGB(features_dc)`로 0차 SH 계수를 RGB로 변환해 반환하고, sh_degree = 0이면 `sigmoid(features_dc)`를 반환한다. 뷰어 등에서 가우시안의 기본 색을 볼 때 쓰인다."
+    },
+    {
+      "id": "7b1bb211-a51d-4c17-a37e-3182ac111fab",
+      "question": "SplatfactoModel의 `load_state_dict` 오버라이드가 하는 특별한 처리 두 가지는?",
+      "answer": "(1) 구버전 체크포인트의 `means` 등 이름을 `gauss_params.means` 형식으로 리매핑하고, (2) 체크포인트의 가우시안 개수에 맞춰 현재 파라미터들을 새 shape의 zero 텐서로 재생성한 뒤 로드한다. densification으로 개수가 변하기 때문에 필요하다. 또한 step을 30000으로 설정한다."
+    },
+    {
+      "id": "93cf8def-c12c-48da-b78c-507d403e9c69",
+      "question": "Splatfacto의 학습 콜백 두 가지는 무엇이며 언제 실행되는가?",
+      "answer": "BEFORE_TRAIN_ITERATION에 `step_cb`(현재 step과 옵티마이저/스케줄러 참조 저장), AFTER_TRAIN_ITERATION에 `step_post_backward`(densification 전략의 post-backward 스텝 실행)가 등록된다."
+    },
+    {
+      "id": "9abd1c41-3f9a-448b-86de-eff931cea805",
+      "question": "`step_post_backward`에서 default 전략과 mcmc 전략의 호출 차이는?",
+      "answer": "DefaultStrategy는 `packed=False`와 rasterization의 `info`를 넘겨 gradient 기반 refine을 수행한다. MCMCStrategy는 추가로 means 스케줄러의 현재 학습률(`lr`)을 넘기는데, 이는 위치에 주입할 노이즈 크기를 학습률에 비례시키기 위해서다."
+    },
+    {
+      "id": "3731f894-06e1-49e7-a900-d0817a42326f",
+      "question": "`get_gaussian_param_groups`를 별도 메서드로 분리한 이유는?",
+      "answer": "사용자가 이 함수를 오버라이드해 가우시안에 최적화 가능한 파라미터를 추가로 정의할 수 있도록 하기 위해서다. 기본 구현은 6개 가우시안 파라미터를 각각 이름별 그룹으로 반환한다."
+    },
+    {
+      "id": "1a66ac9e-fc5d-45cd-87d1-85a61ce8bc76",
+      "question": "`get_param_groups`는 가우시안 파라미터 외에 어떤 그룹을 추가할 수 있는가?",
+      "answer": "`use_bilateral_grid=True`면 \"bilateral_grid\" 그룹을 추가하고, camera optimizer가 켜져 있으면 `camera_optimizer.get_param_groups`로 카메라 포즈 파라미터 그룹(camera_opt)을 추가한다."
+    }
+  ]
+}
